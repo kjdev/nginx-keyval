@@ -1,8 +1,7 @@
 nginx-keyval
 ============
 
-The ngx_http_keyval_module module creates variables
-with values taken from key-value pairs.
+This nginx module creates variables with values taken from key-value pairs.
 
 > This modules is heavenly inspired by the nginx original
 > [http_keyval_module](https://nginx.org/en/docs/http/ngx_http_keyval_module.html).
@@ -75,6 +74,11 @@ Context: http
 
 Sets the name and size of the shared memory zone that
 keeps the key-value database.
+
+Example
+-------
+
+- [OpenID Connect Authentication](example/README.md)
 
 
 TODO
