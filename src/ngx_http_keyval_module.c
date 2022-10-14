@@ -77,7 +77,7 @@ typedef struct {
 typedef struct {
   ngx_http_keyval_sh_t *sh;
   ngx_slab_pool_t *shpool;
-} ngx_http_keyval_ctx_t;
+} ngx_http_keyval_shm_ctx_t;
 
 typedef struct {
   ngx_str_t name;
@@ -165,7 +165,7 @@ static ngx_int_t
 ngx_http_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
 {
   size_t len;
-  ngx_http_keyval_ctx_t *ctx, *octx;
+  ngx_http_keyval_shm_ctx_t *ctx, *octx;
 
   octx = data;
   ctx = shm_zone->data;
@@ -280,7 +280,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
   ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
   ngx_http_keyval_conf_t *config;
-  ngx_http_keyval_ctx_t *ctx;
+  ngx_http_keyval_shm_ctx_t *ctx;
   ngx_http_keyval_zone_t *zone;
 
   value = cf->args->elts;
@@ -335,7 +335,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_ERROR;
   }
 
-  ctx = ngx_pcalloc(cf->pool, sizeof(ngx_http_keyval_ctx_t));
+  ctx = ngx_pcalloc(cf->pool, sizeof(ngx_http_keyval_shm_ctx_t));
   if (ctx == NULL) {
     return "failed to allocate";
   }
@@ -515,15 +515,43 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
   return NGX_OK;
 }
 
+static ngx_http_keyval_shm_ctx_t *
+ngx_http_keyval_shm_get_context(ngx_http_request_t *r, ngx_shm_zone_t *shm)
+{
+  ngx_http_keyval_shm_ctx_t *ctx;
+
+  if (!shm) {
+    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                  "keyval: rejected due to not found shared memory zone");
+    return NULL;
+  }
+
+  ctx = shm->data;
+  if (!ctx) {
+    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                  "keyval: rejected due to not found shared memory context");
+    return NULL;
+  }
+
+  return ctx;
+}
+
 static ngx_int_t
-ngx_http_keyval_get_data(ngx_http_request_t *r, ngx_http_keyval_ctx_t *ctx,
-                         ngx_str_t *key, ngx_str_t *val)
+ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
+                             ngx_shm_zone_t *shm,
+                             ngx_str_t *key, ngx_str_t *val)
 {
   uint32_t hash;
   ngx_rbtree_node_t *node;
   ngx_http_keyval_node_t *kv;
+  ngx_http_keyval_shm_ctx_t *ctx;
 
-  if (!ctx || !key || !val) {
+  if (!shm || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  ctx = ngx_http_keyval_shm_get_context(r, shm);
+  if (!ctx) {
     return NGX_ERROR;
   }
 
@@ -551,15 +579,21 @@ ngx_http_keyval_get_data(ngx_http_request_t *r, ngx_http_keyval_ctx_t *ctx,
 }
 
 static ngx_int_t
-ngx_http_keyval_set_data(ngx_http_request_t *r, ngx_http_keyval_ctx_t *ctx,
-                         ngx_str_t *key, ngx_str_t *val)
+ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
+                             ngx_str_t *key, ngx_str_t *val)
 {
   uint32_t hash;
   size_t n;
   ngx_int_t rc;
   ngx_rbtree_node_t *node;
+  ngx_http_keyval_shm_ctx_t *ctx;
 
-  if (!ctx || !key || !val) {
+  if (!shm || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  ctx = ngx_http_keyval_shm_get_context(r, shm);
+  if (!ctx) {
     return NGX_ERROR;
   }
 
@@ -609,7 +643,6 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
                                      uintptr_t data)
 {
   ngx_str_t key, val;
-  ngx_http_keyval_ctx_t *ctx;
   ngx_http_keyval_zone_t *zone;
 
   if (ngx_http_keyval_variable_init(r, data, &key, &zone) != NGX_OK) {
@@ -619,22 +652,11 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
   val.data = v->data;
   val.len = v->len;
 
-  if (!zone->shm) {
+  if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
+    ngx_http_keyval_shm_set_data(r, zone->shm, &key, &val);
+  } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                  "keyval: rejected due to not found shared memory zone");
-    return;
-  }
-
-  ctx = zone->shm->data;
-  if (!ctx) {
-    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                  "keyval: rejected due to not found shared memory context");
-    return;
-  }
-
-  if (ngx_http_keyval_set_data(r, ctx, &key, &val) != NGX_OK) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                  "keyval: failed to set data: \"%V\":\"%V\"", &key, &val);
+                  "keyval: rejected due to wrong zone type");
   }
 }
 
@@ -644,7 +666,6 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
                                      uintptr_t data)
 {
   ngx_str_t key, val;
-  ngx_http_keyval_ctx_t *ctx;
   ngx_http_keyval_zone_t *zone;
 
   if (ngx_http_keyval_variable_init(r, data, &key, &zone) != NGX_OK) {
@@ -652,22 +673,14 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
     return NGX_OK;
   }
 
-  if (!zone->shm) {
+  if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
+    if (ngx_http_keyval_shm_get_data(r, zone->shm, &key, &val) != NGX_OK) {
+      v->not_found = 1;
+      return NGX_OK;
+    }
+  } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                  "keyval: rejected due to not found shared memory zone");
-    v->not_found = 1;
-    return NGX_OK;
-  }
-
-  ctx = zone->shm->data;
-  if (!ctx) {
-    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                  "keyval: rejected due to not found shared memory context");
-    v->not_found = 1;
-    return NGX_OK;
-  }
-
-  if (ngx_http_keyval_get_data(r, ctx, &key, &val) != NGX_OK) {
+                  "keyval: rejected due to wrong zone type");
     v->not_found = 1;
     return NGX_OK;
   }
