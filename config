@@ -1,4 +1,15 @@
 
+if [ -n "$NGX_HTTP_KEYVAL_ZONE_REDIS" ]; then
+  cat << END >> $NGX_AUTO_CONFIG_H
+
+#ifndef NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS
+#define NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS 1
+#endif
+
+END
+  NGX_KEYVAL_LIBS="-lhiredis"
+fi
+
 ngx_addon_name=ngx_http_keyval_module
 
 ngx_module_type=HTTP
@@ -6,6 +17,6 @@ ngx_module_name=ngx_http_keyval_module
 ngx_module_srcs="$ngx_addon_dir/src/ngx_http_keyval_module.c"
 ngx_module_deps=
 ngx_module_incs=
-ngx_module_libs=
+ngx_module_libs="$NGX_KEYVAL_LIBS"
 
 . auto/module

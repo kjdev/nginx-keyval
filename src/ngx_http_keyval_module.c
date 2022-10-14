@@ -2,8 +2,14 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#include <hiredis/hiredis.h>
+#endif
 
 static char *ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+static char *ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+#endif
 static char *ngx_http_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static void *ngx_http_keyval_create_main_conf(ngx_conf_t *cf);
@@ -24,6 +30,14 @@ static ngx_command_t ngx_http_keyval_commands[] = {
     0,
     0,
     NULL },
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+  { ngx_string("keyval_zone_redis"),
+    NGX_HTTP_MAIN_CONF|NGX_CONF_1MORE,
+    ngx_http_keyval_conf_set_zone_redis,
+    0,
+    0,
+    NULL },
+#endif
   ngx_null_command
 };
 
@@ -54,7 +68,8 @@ ngx_module_t ngx_http_keyval_module = {
 };
 
 typedef enum {
-  NGX_HTTP_KEYVAL_ZONE_SHM
+  NGX_HTTP_KEYVAL_ZONE_SHM,
+  NGX_HTTP_KEYVAL_ZONE_REDIS
 } ngx_http_keyval_zone_type_t;
 
 typedef struct {
@@ -80,9 +95,18 @@ typedef struct {
 } ngx_http_keyval_shm_ctx_t;
 
 typedef struct {
+  u_char *hostname;
+  ngx_int_t port;
+  ngx_int_t db;
+  time_t timeout;
+  time_t connect_timeout;
+} ngx_http_keyval_redis_t;
+
+typedef struct {
   ngx_str_t name;
   ngx_http_keyval_zone_type_t type;
   ngx_shm_zone_t *shm;
+  ngx_http_keyval_redis_t redis;
 } ngx_http_keyval_zone_t;
 
 typedef struct {
@@ -91,6 +115,12 @@ typedef struct {
   ngx_str_t variable;
   ngx_http_keyval_zone_t *zone;
 } ngx_http_keyval_variable_t;
+
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+typedef struct {
+  redisContext *redis;
+} ngx_http_keyval_redis_ctx_t;
+#endif
 
 static void
 ngx_http_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
@@ -351,6 +381,129 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
   return NGX_CONF_OK;
 }
 
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+static char *
+ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
+                                    ngx_command_t *cmd, void *conf)
+{
+  ngx_uint_t i;
+  ngx_str_t name, *value;
+  ngx_http_keyval_conf_t *config;
+  ngx_http_keyval_zone_t *zone;
+
+  value = cf->args->elts;
+
+  name.len = 0;
+
+  if (ngx_strncmp(value[1].data, "zone=", 5) == 0) {
+    name.data = value[1].data + 5;
+    name.len = value[1].len - 5;
+  }
+
+  if (name.len == 0) {
+    return "must have \"zone\" parameter";
+  }
+
+  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
+
+  zone = ngx_http_keyval_conf_zone_add(cf, cmd, config,
+                                       &name, NGX_HTTP_KEYVAL_ZONE_REDIS);
+  if (zone == NULL) {
+    return NGX_CONF_ERROR;
+  }
+
+  /* redis default */
+  zone->redis.hostname = NULL;
+  zone->redis.port = 6379;
+  zone->redis.db = 0;
+  zone->redis.timeout = 0;
+  zone->redis.connect_timeout = 3;
+
+  for (i = 2; i < cf->args->nelts; i++) {
+    if (ngx_strncmp(value[i].data, "hostname=", 9) == 0 && value[i].len > 9) {
+      zone->redis.hostname = ngx_pnalloc(cf->pool, value[i].len - 9 + 1);
+      if (zone->redis.hostname == NULL) {
+        return "failed to allocate hostname";
+      }
+      ngx_memcpy(zone->redis.hostname, value[i].data + 9, value[i].len - 9);
+      zone->redis.hostname[value[i].len - 9] = '\0';
+      continue;
+    }
+
+    if (ngx_strncmp(value[i].data, "port=", 5) == 0 && value[i].len > 5) {
+      zone->redis.port = ngx_atoi(value[i].data + 5, value[i].len - 5);
+      if (zone->redis.port <= 0) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" invalid port \"%V\"",
+                           &cmd->name, &value[i]);
+        return NGX_CONF_ERROR;
+      }
+      continue;
+    }
+
+    if (ngx_strncmp(value[i].data, "database=", 9) == 0 && value[i].len > 9) {
+      zone->redis.db = ngx_atoi(value[i].data + 9, value[i].len - 9);
+      if (zone->redis.db < 0) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" invalid database \"%V\"",
+                           &cmd->name, &value[i]);
+        return NGX_CONF_ERROR;
+      }
+      continue;
+    }
+
+    if (ngx_strncmp(value[i].data, "timeout=", 8) == 0 && value[i].len > 8) {
+      ngx_str_t s;
+
+      s.len = value[i].len - 8;
+      s.data = value[i].data + 8;
+
+      zone->redis.timeout = ngx_parse_time(&s, 1);
+      if (zone->redis.timeout == (time_t) NGX_ERROR) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" invalid timeout \"%V\"",
+                           &cmd->name, &value[i]);
+        return NGX_CONF_ERROR;
+      }
+      continue;
+    }
+
+    if (ngx_strncmp(value[i].data, "connect_timeout=", 16) == 0
+        && value[i].len > 16) {
+      ngx_str_t s;
+
+      s.len = value[i].len - 16;
+      s.data = value[i].data + 16;
+
+      zone->redis.connect_timeout = ngx_parse_time(&s, 1);
+      if (zone->redis.connect_timeout == (time_t) NGX_ERROR) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" invalid connect timeout \"%V\"",
+                           &cmd->name, &value[i]);
+        return NGX_CONF_ERROR;
+      }
+      continue;
+    }
+
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "\"%V\" invalid parameter \"%V\"",
+                       &cmd->name, &value[i]);
+    return NGX_CONF_ERROR;
+  }
+
+  if (zone->redis.hostname == NULL) {
+    zone->redis.hostname = ngx_pnalloc(cf->pool, sizeof("127.0.0.1"));
+    if (zone->redis.hostname == NULL) {
+      return "failed to allocate hostname";
+    }
+    ngx_memcpy(zone->redis.hostname, "127.0.0.1", sizeof("127.0.0.1") - 1);
+    zone->redis.hostname[sizeof("127.0.0.1") - 1] = '\0';
+  }
+
+  return NGX_CONF_OK;
+}
+#endif
+
 static char *
 ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
                                   ngx_command_t *cmd, void *conf)
@@ -415,7 +568,7 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
     if (var->zone->shm == NULL) {
       return "failed to allocate shared memory";
     }
-  } else {
+  } else if (var->zone->type != NGX_HTTP_KEYVAL_ZONE_REDIS) {
     return "invalid zone type";
   }
 
@@ -637,6 +790,212 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
   return rc;
 }
 
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+static void
+ngx_http_keyval_redis_cleanup_ctx(void *data)
+{
+  ngx_http_keyval_redis_ctx_t *ctx = data;
+
+  if (ctx && ctx->redis) {
+    redisFree(ctx->redis);
+    ctx->redis = NULL;
+  }
+}
+
+static ngx_http_keyval_redis_ctx_t *
+ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
+{
+  ngx_pool_cleanup_t *cleanup;
+  ngx_http_keyval_redis_ctx_t *ctx;
+
+  ctx = ngx_http_get_module_ctx(r, ngx_http_keyval_module);
+  if (ctx != NULL) {
+    return ctx;
+  }
+
+  ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_keyval_redis_ctx_t));
+  if (ctx == NULL) {
+    ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                  "keyval: failed to allocate redis context");
+    return NULL;
+  }
+
+  ctx->redis = NULL;
+
+  ngx_http_set_ctx(r, ctx, ngx_http_keyval_module);
+
+  cleanup = ngx_pool_cleanup_add(r->pool, 0);
+  if (cleanup == NULL) {
+    ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                  "keyval: failed to allocate redis context cleanup");
+    return NULL;
+  }
+  cleanup->handler = ngx_http_keyval_redis_cleanup_ctx;
+  cleanup->data = ctx;
+
+  return ctx;
+}
+
+static redisContext *
+ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
+                                  ngx_http_keyval_redis_t *redis)
+{
+  struct timeval timeout = { 0, 0 };
+  ngx_http_keyval_redis_ctx_t *ctx;
+
+  ctx = ngx_http_keyval_redis_get_ctx(r);
+  if (!ctx) {
+    return NULL;
+  }
+
+  if (ctx->redis) {
+    return ctx->redis;
+  }
+
+  timeout.tv_sec = redis->connect_timeout;
+
+  ctx->redis = redisConnectWithTimeout((char *)redis->hostname, redis->port,
+                                       timeout);
+  if (!ctx->redis) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to connect redis: "
+                  "hostname=%s port=%d connect_timeout=%ds",
+                  (char *)redis->hostname, redis->port, redis->connect_timeout);
+    return NULL;
+  } else if (ctx->redis->err) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to connect redis: "
+                  "hostname=%s port=%d connect_timeout=%ds: %s",
+                  (char *)redis->hostname, redis->port, redis->connect_timeout,
+                  ctx->redis->errstr);
+    return NULL;
+  }
+
+  if (redis->db > 0) {
+    redisReply *resp = NULL;
+
+    resp = (redisReply *) redisCommand(ctx->redis, "SELECT %d", redis->db);
+    if (!resp) {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "keyval: failed to command redis: SELECT");
+      return NULL;
+    } else if (resp->type == REDIS_REPLY_ERROR) {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "keyval: failed to command redis: SELECT: %s", resp->str);
+      freeReplyObject(resp);
+      return NULL;
+    }
+    freeReplyObject(resp);
+  }
+
+  return ctx->redis;
+}
+
+static ngx_int_t
+ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
+                               ngx_http_keyval_redis_t *redis,
+                               ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
+{
+  ngx_int_t rc = NGX_ERROR;
+  redisContext *ctx = NULL;
+  redisReply *resp = NULL;
+
+  if (!redis || !zone || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  ctx = ngx_http_keyval_redis_get_context(r, redis);
+  if (ctx == NULL) {
+    return NGX_ERROR;
+  }
+
+  resp = (redisReply *) redisCommand(ctx, "GET %b:%b",
+                                     zone->data, zone->len,
+                                     key->data, key->len);
+  if (!resp) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to command redis: GET");
+    return NGX_ERROR;
+  }
+
+  if (resp->type == REDIS_REPLY_STRING) {
+    u_char *str;
+
+    str = ngx_pnalloc(r->pool, resp->len + 1);
+    if (str) {
+      ngx_memcpy(str, resp->str, resp->len);
+      str[resp->len] = '\0';
+
+      val->data = str;
+      val->len = resp->len;
+
+      rc = NGX_OK;
+    } else {
+      ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                    "keyval: failed to allocate redis reply");
+    }
+  } else if (resp->type == REDIS_REPLY_ERROR) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to command redis: GET: %s", resp->str);
+  } else {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to command redis: type: %d", resp->type);
+  }
+
+  freeReplyObject(resp);
+
+  return rc;
+}
+
+static ngx_int_t
+ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
+                               ngx_http_keyval_redis_t *redis,
+                               ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
+{
+  ngx_int_t rc = NGX_ERROR;
+  redisContext *ctx = NULL;
+  redisReply *resp = NULL;
+
+  if (!redis || !zone || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  ctx = ngx_http_keyval_redis_get_context(r, redis);
+  if (ctx == NULL) {
+    return NGX_ERROR;
+  }
+
+  if (redis->timeout == 0) {
+    resp = (redisReply *) redisCommand(ctx, "SET %b:%b %b",
+                                       zone->data, zone->len,
+                                       key->data, key->len,
+                                       val->data, val->len);
+  } else {
+    resp = (redisReply *) redisCommand(ctx, "SETEX %b:%b %d %b",
+                                       zone->data, zone->len,
+                                       key->data, key->len,
+                                       redis->timeout, val->data, val->len);
+  }
+
+  if (!resp) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to command redis: SET|SETEX");
+    return NGX_ERROR;
+  }
+
+  if (resp->type == REDIS_REPLY_ERROR) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "keyval: failed to command redis: SET|SETEX: %s", resp->str);
+  } else {
+    rc = NGX_OK;
+  }
+
+  freeReplyObject(resp);
+
+  return rc;
+}
+#endif
+
 static void
 ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
                                      ngx_http_variable_value_t *v,
@@ -654,6 +1013,10 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
 
   if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
     ngx_http_keyval_shm_set_data(r, zone->shm, &key, &val);
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+  } else if (zone->type == NGX_HTTP_KEYVAL_ZONE_REDIS) {
+    ngx_http_keyval_redis_set_data(r, &zone->redis, &zone->name, &key, &val);
+#endif
   } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "keyval: rejected due to wrong zone type");
@@ -678,6 +1041,15 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
       v->not_found = 1;
       return NGX_OK;
     }
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+  } else if (zone->type == NGX_HTTP_KEYVAL_ZONE_REDIS) {
+    if (ngx_http_keyval_redis_get_data(r,
+                                       &zone->redis, &zone->name,
+                                       &key, &val) != NGX_OK) {
+      v->not_found = 1;
+      return NGX_OK;
+    }
+#endif
   } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "keyval: rejected due to wrong zone type");
