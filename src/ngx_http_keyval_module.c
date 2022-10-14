@@ -243,18 +243,10 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                          &cmd->name, &value[1]);
       return NGX_CONF_ERROR;
     }
-  } else {
-    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                       "\"%V\" invalid zone size \"%V\"",
-                       &cmd->name, &value[1]);
-    return NGX_CONF_ERROR;
   }
 
   if (name.len == 0) {
-    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                       "\"%V\" must have \"zone\" parameter",
-                       &cmd->name);
-    return NGX_CONF_ERROR;
+    return "must have \"zone\" parameter";
   }
 
   ctx = ngx_pcalloc(cf->pool, sizeof(ngx_http_keyval_ctx_t));
