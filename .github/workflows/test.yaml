@@ -8,6 +8,12 @@ jobs:
 
     if: contains(github.event.head_commit.message, 'ci skip') == false
 
+    strategy:
+      matrix:
+        optional:
+          - ''
+          - 'redis'
+
     container:
       image: alpine:latest
 
@@ -15,7 +21,7 @@ jobs:
       - name: Prepare required command
         run: |
           apk --no-cache upgrade
-          apk --no-cache add curl gcc gd-dev geoip-dev git libxslt-dev linux-headers make musl-dev nginx openssl-dev pcre-dev perl-dev perl-utils zlib-dev
+          apk --no-cache add curl gcc gd-dev geoip-dev git hiredis-dev libxslt-dev linux-headers make musl-dev nginx openssl-dev pcre-dev perl-dev perl-utils redis zlib-dev
           cpan -Ti Test::Nginx
         env:
           PERL_MM_USE_DEFAULT: 1
@@ -36,10 +42,14 @@ jobs:
           make
           mkdir -p /usr/lib/nginx/modules
           cp objs/ngx_http_keyval_module.so /usr/lib/nginx/modules/
+        env:
+          NGX_HTTP_KEYVAL_ZONE_REDIS: ${{ matrix.optional }}
 
       - name: Test
         run: |
+          redis-server --daemonize yes
           prove -r t 2> /dev/null
         env:
+          NGX_HTTP_KEYVAL_ZONE_REDIS: ${{ matrix.optional }}
           TEST_NGINX_LOAD_MODULES: /usr/lib/nginx/modules/ngx_http_keyval_module.so
           TEST_NGINX_SERVROOT: /tmp/servroot
