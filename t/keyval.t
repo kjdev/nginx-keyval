@@ -232,3 +232,23 @@ location = /set2 {
   "/set2(key): 1:test1 2:test2\n",
   "/get(key): 1:test1 2:test2\n"
 ]
+
+=== conf not found keyval_zone
+--- http_config
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf not found zone parameter
+--- http_config
+keyval_zone zone=test:1M;
+keyval $cookie_data_key $keyval_data;
+--- config
+--- must_die
+
+=== conf invalid zone parameter
+--- http_config
+keyval_zone zone=test:1M;
+keyval $cookie_data_key $keyval_data zone=test1;
+--- config
+--- must_die
