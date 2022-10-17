@@ -6,6 +6,8 @@ FROM alpine:${ALPINE_VERSION} as nginx
 ### builder ###
 FROM nginx as builder
 
+ENV NGX_HTTP_KEYVAL_ZONE_REDIS=1
+
 WORKDIR /build
 RUN apk --no-cache upgrade \
  && apk --no-cache add \
@@ -13,6 +15,7 @@ RUN apk --no-cache upgrade \
       gcc \
       gd-dev \
       geoip-dev \
+      hiredis-dev \
       libxslt-dev \
       linux-headers \
       make \
@@ -48,6 +51,7 @@ FROM nginx
 
 RUN apk --no-cache upgrade \
  && apk --no-cache add \
+      hiredis \
       nginx \
  && sed \
       -e 's/^user /#user /' \
