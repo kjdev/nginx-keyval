@@ -6,6 +6,13 @@ This nginx module creates variables with values taken from key-value pairs.
 > This modules is heavenly inspired by the nginx original
 > [http_keyval_module](https://nginx.org/en/docs/http/ngx_http_keyval_module.html).
 
+Dependency
+----------
+
+Using the Redis store.
+
+- [hiredis](https://github.com/redis/hiredis)
+
 Installation
 ------------
 
@@ -20,6 +27,8 @@ $ NGINX_VERSION=1.x.x # specify nginx version
 $ wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
 $ tar -zxf nginx-${NGINX_VERSION}.tar.gz
 $ cd nginx-${NGINX_VERSION}
+$ : "using redis store"
+$ : export NGX_HTTP_KEYVAL_ZONE_REDIS=1
 $ : "build module"
 $ ./configure --add-dynamic-module=../
 $ make && make install
@@ -62,9 +71,11 @@ Default: -
 Context: http
 ```
 
-Creates a new $variable whose value is looked up by the key
+Creates a new `$variable` whose value is looked up by the `key`
 in the key-value database.
-The database is stored in a shared memory zone specified by the zone parameter.
+
+The database is stored in a shared memory or in the Redis zone specified
+by the zone parameter.
 
 ```
 Syntax: keyval_zone zone=name:size;
@@ -72,8 +83,33 @@ Default: -
 Context: http
 ```
 
-Sets the name and size of the shared memory zone that
+Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
+
+```
+Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [timeout=time];
+Default: -
+Context: http
+```
+
+> Using the Redis store
+
+Sets the `name` of the Redis zone that keeps the key-value database.
+
+The optional `hostname` parameter sets the Redis hostname
+(default value is `127.0.0.1`).
+
+The optional `port` parameter sets the Redis port
+(default value is `6379`).
+
+The optional `database` parameter sets the Redis database number
+(default value is `0`).
+
+The optional `connect_timeout` parameter sets the Redis connection
+timeout seconds (default value is `3`).
+
+The optional `timeout` parameter sets the time after
+which key-value pairs are removed (default value is `0` seconds).
 
 Example
 -------
