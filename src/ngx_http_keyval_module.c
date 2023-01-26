@@ -938,8 +938,8 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                   "keyval: failed to command redis: GET: %s", resp->str);
   } else {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                  "keyval: failed to command redis: type: %d", resp->type);
+    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                  "keyval: failed to command redis: GET: type: %d", resp->type);
   }
 
   freeReplyObject(resp);
