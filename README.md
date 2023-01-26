@@ -74,7 +74,7 @@ Context: http
 Creates a new `$variable` whose value is looked up by the `key`
 in the key-value database.
 
-The database is stored in a shared memory or in the Redis zone specified
+The database is stored in shared memory or Redis as specified
 by the zone parameter.
 
 ```
