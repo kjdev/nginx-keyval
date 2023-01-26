@@ -1028,6 +1028,7 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
                                      ngx_http_variable_value_t *v,
                                      uintptr_t data)
 {
+  ngx_int_t rc;
   ngx_str_t key, val;
   ngx_http_keyval_zone_t *zone;
 
@@ -1037,18 +1038,12 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
   }
 
   if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
-    if (ngx_http_keyval_shm_get_data(r, zone->shm, &key, &val) != NGX_OK) {
-      v->not_found = 1;
-      return NGX_OK;
-    }
+    rc = ngx_http_keyval_shm_get_data(r, zone->shm, &key, &val);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_HTTP_KEYVAL_ZONE_REDIS) {
-    if (ngx_http_keyval_redis_get_data(r,
-                                       &zone->redis, &zone->name,
-                                       &key, &val) != NGX_OK) {
-      v->not_found = 1;
-      return NGX_OK;
-    }
+    rc = ngx_http_keyval_redis_get_data(r,
+                                        &zone->redis, &zone->name,
+                                        &key, &val);
 #endif
   } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -1057,8 +1052,13 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
     return NGX_OK;
   }
 
-  v->data = val.data;
-  v->len = val.len;
+  if (rc == NGX_OK) {
+    v->data = val.data;
+    v->len = val.len;
+  } else {
+    v->data = NULL;
+    v->len = 0;
+  }
   v->valid = 1;
   v->no_cacheable = 0;
   v->not_found = 0;
