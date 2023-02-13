@@ -87,7 +87,7 @@ Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
 
 ```
-Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [timeout=time];
+Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
 Default: -
 Context: http
 ```
@@ -108,7 +108,7 @@ The optional `database` parameter sets the Redis database number
 The optional `connect_timeout` parameter sets the Redis connection
 timeout seconds (default value is `3`).
 
-The optional `timeout` parameter sets the time after
+The optional `ttl` parameter sets the time to live
 which key-value pairs are removed (default value is `0` seconds).
 
 Example
