@@ -98,7 +98,7 @@ typedef struct {
   u_char *hostname;
   ngx_int_t port;
   ngx_int_t db;
-  time_t timeout;
+  time_t ttl;
   time_t connect_timeout;
 } ngx_http_keyval_redis_t;
 
@@ -416,7 +416,7 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
   zone->redis.hostname = NULL;
   zone->redis.port = 6379;
   zone->redis.db = 0;
-  zone->redis.timeout = 0;
+  zone->redis.ttl = 0;
   zone->redis.connect_timeout = 3;
 
   for (i = 2; i < cf->args->nelts; i++) {
@@ -452,16 +452,16 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
       continue;
     }
 
-    if (ngx_strncmp(value[i].data, "timeout=", 8) == 0 && value[i].len > 8) {
+    if (ngx_strncmp(value[i].data, "ttl=", 4) == 0 && value[i].len > 4) {
       ngx_str_t s;
 
-      s.len = value[i].len - 8;
-      s.data = value[i].data + 8;
+      s.len = value[i].len - 4;
+      s.data = value[i].data + 4;
 
-      zone->redis.timeout = ngx_parse_time(&s, 1);
-      if (zone->redis.timeout == (time_t) NGX_ERROR) {
+      zone->redis.ttl = ngx_parse_time(&s, 1);
+      if (zone->redis.ttl == (time_t) NGX_ERROR) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "\"%V\" invalid timeout \"%V\"",
+                           "\"%V\" invalid ttl \"%V\"",
                            &cmd->name, &value[i]);
         return NGX_CONF_ERROR;
       }
@@ -965,7 +965,7 @@ ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
     return NGX_ERROR;
   }
 
-  if (redis->timeout == 0) {
+  if (redis->ttl == 0) {
     resp = (redisReply *) redisCommand(ctx, "SET %b:%b %b",
                                        zone->data, zone->len,
                                        key->data, key->len,
@@ -974,7 +974,7 @@ ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
     resp = (redisReply *) redisCommand(ctx, "SETEX %b:%b %d %b",
                                        zone->data, zone->len,
                                        key->data, key->len,
-                                       redis->timeout, val->data, val->len);
+                                       redis->ttl, val->data, val->len);
   }
 
   if (!resp) {
