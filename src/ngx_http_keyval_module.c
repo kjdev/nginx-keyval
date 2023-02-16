@@ -615,7 +615,7 @@ ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
     ngx_http_variable_value_t *v;
     v = ngx_http_get_indexed_variable(r, var->key_index);
     if (v == NULL || v->not_found) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+      ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "keyval: variable specified was not provided");
       return NGX_ERROR;
     } else {
