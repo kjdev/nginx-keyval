@@ -37,7 +37,7 @@ static ngx_command_t ngx_http_keyval_commands[] = {
 static ngx_http_module_t ngx_http_keyval_module_ctx = {
   NULL,                             /* preconfiguration */
   NULL,                             /* postconfiguration */
-  ngx_http_keyval_create_main_conf, /* create main configuration */
+  ngx_keyval_create_main_conf,      /* create main configuration */
   NULL,                             /* init main configuration */
   NULL,                             /* create server configuration */
   NULL,                             /* merge server configuration */
@@ -116,8 +116,8 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
   config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
 
-  zone = ngx_http_keyval_conf_zone_add(cf, cmd, config,
-                                       &name, NGX_HTTP_KEYVAL_ZONE_SHM);
+  zone = ngx_keyval_conf_zone_add(cf, cmd, config,
+                                  &name, NGX_HTTP_KEYVAL_ZONE_SHM);
   if (zone == NULL) {
     return NGX_CONF_ERROR;
   }
@@ -132,7 +132,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return "failed to allocate shared memory";
   }
 
-  shm_zone->init = ngx_http_keyval_init_zone;
+  shm_zone->init = ngx_keyval_init_zone;
   shm_zone->data = ctx;
 
   return NGX_CONF_OK;
@@ -163,8 +163,8 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
 
   config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
 
-  zone = ngx_http_keyval_conf_zone_add(cf, cmd, config,
-                                       &name, NGX_HTTP_KEYVAL_ZONE_REDIS);
+  zone = ngx_keyval_conf_zone_add(cf, cmd, config,
+                                  &name, NGX_HTTP_KEYVAL_ZONE_REDIS);
   if (zone == NULL) {
     return NGX_CONF_ERROR;
   }
@@ -314,7 +314,7 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
 
   var->variable = value[2];
 
-  var->zone = ngx_http_keyval_conf_zone_get(cf, cmd, config, &value[3]);
+  var->zone = ngx_keyval_conf_zone_get(cf, cmd, config, &value[3]);
   if (var->zone == NULL) {
     return "zone not found";
   }
@@ -453,7 +453,7 @@ ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
 
   ngx_shmtx_lock(&ctx->shpool->mutex);
 
-  node = ngx_http_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
+  node = ngx_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
 
   ngx_shmtx_unlock(&ctx->shpool->mutex);
 
@@ -495,7 +495,7 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
 
   ngx_shmtx_lock(&ctx->shpool->mutex);
 
-  node = ngx_http_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
+  node = ngx_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
   if (node != NULL) {
     ngx_rbtree_delete(&ctx->sh->rbtree, node);
     ngx_slab_free_locked(ctx->shpool, node);
@@ -560,7 +560,7 @@ ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
                   "keyval: failed to allocate redis context cleanup");
     return NULL;
   }
-  cleanup->handler = ngx_http_keyval_redis_cleanup_ctx;
+  cleanup->handler = ngx_keyval_redis_cleanup_ctx;
   cleanup->data = ctx;
 
   return ctx;

@@ -1,9 +1,9 @@
 #include "ngx_keyval.h"
 
 static void
-ngx_http_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
-                                    ngx_rbtree_node_t *node,
-                                    ngx_rbtree_node_t *sentinel)
+ngx_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
+                               ngx_rbtree_node_t *node,
+                               ngx_rbtree_node_t *sentinel)
 {
   ngx_rbtree_node_t **p;
   ngx_http_keyval_node_t *n, *nt;
@@ -33,8 +33,7 @@ ngx_http_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
 }
 
 ngx_rbtree_node_t *
-ngx_http_keyval_rbtree_lookup(ngx_rbtree_t *rbtree,
-                              ngx_str_t *key, uint32_t hash)
+ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash)
 {
   ngx_int_t rc;
   ngx_rbtree_node_t *node, *sentinel;
@@ -70,7 +69,7 @@ ngx_http_keyval_rbtree_lookup(ngx_rbtree_t *rbtree,
 }
 
 ngx_int_t
-ngx_http_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
+ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
 {
   size_t len;
   ngx_http_keyval_shm_ctx_t *ctx, *octx;
@@ -99,7 +98,7 @@ ngx_http_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
   ctx->shpool->data = ctx->sh;
 
   ngx_rbtree_init(&ctx->sh->rbtree, &ctx->sh->sentinel,
-                  ngx_http_keyval_rbtree_insert_value);
+                  ngx_keyval_rbtree_insert_value);
 
   len = sizeof(" in keyval zone \"\"") + shm_zone->shm.name.len;
 
@@ -117,8 +116,8 @@ ngx_http_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
 }
 
 ngx_http_keyval_zone_t *
-ngx_http_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
-                              ngx_http_keyval_conf_t *conf, ngx_str_t *name)
+ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
+                         ngx_http_keyval_conf_t *conf, ngx_str_t *name)
 {
   ngx_uint_t i;
   ngx_http_keyval_zone_t *zone;
@@ -140,9 +139,9 @@ ngx_http_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
 }
 
 ngx_http_keyval_zone_t *
-ngx_http_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
-                              ngx_http_keyval_conf_t *conf,
-                              ngx_str_t *name, ngx_http_keyval_zone_type_t type)
+ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
+                         ngx_http_keyval_conf_t *conf, ngx_str_t *name,
+                         ngx_http_keyval_zone_type_t type)
 {
   ngx_http_keyval_zone_t *zone;
 
@@ -161,7 +160,7 @@ ngx_http_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
     }
   }
 
-  if (ngx_http_keyval_conf_zone_get(cf, cmd, conf, name) != NULL) {
+  if (ngx_keyval_conf_zone_get(cf, cmd, conf, name) != NULL) {
     ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                        "\"%V\" duplicate \"zone=%V\" parameter",
                        &cmd->name, name);
@@ -182,7 +181,7 @@ ngx_http_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
 }
 
 void *
-ngx_http_keyval_create_main_conf(ngx_conf_t *cf)
+ngx_keyval_create_main_conf(ngx_conf_t *cf)
 {
   ngx_http_keyval_conf_t *conf;
 
@@ -199,7 +198,7 @@ ngx_http_keyval_create_main_conf(ngx_conf_t *cf)
 
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
 void
-ngx_http_keyval_redis_cleanup_ctx(void *data)
+ngx_keyval_redis_cleanup_ctx(void *data)
 {
   ngx_http_keyval_redis_ctx_t *ctx = data;
 

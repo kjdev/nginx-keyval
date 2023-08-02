@@ -62,15 +62,15 @@ typedef struct {
 } ngx_http_keyval_redis_ctx_t;
 #endif
 
-ngx_rbtree_node_t *ngx_http_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash);
-ngx_int_t ngx_http_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);
-ngx_http_keyval_zone_t *ngx_http_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd, ngx_http_keyval_conf_t *conf, ngx_str_t *name);
-ngx_http_keyval_zone_t *ngx_http_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd, ngx_http_keyval_conf_t *conf, ngx_str_t *name, ngx_http_keyval_zone_type_t type);
+ngx_rbtree_node_t *ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash);
+ngx_int_t ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);
+ngx_http_keyval_zone_t *ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd, ngx_http_keyval_conf_t *conf, ngx_str_t *name);
+ngx_http_keyval_zone_t *ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd, ngx_http_keyval_conf_t *conf, ngx_str_t *name, ngx_http_keyval_zone_type_t type);
 
-void *ngx_http_keyval_create_main_conf(ngx_conf_t *cf);
+void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
-void ngx_http_keyval_redis_cleanup_ctx(void *data);
+void ngx_keyval_redis_cleanup_ctx(void *data);
 #endif
 
 #endif /* NGX_KEYVAL_H */
