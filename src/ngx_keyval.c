@@ -258,7 +258,10 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
   shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
   if (shm_zone == NULL) {
-    return "failed to allocate shared memory";
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "\"%V\" failed to allocate memory or \"%V\" is already",
+                       &cmd->name, &name);
+    return NGX_CONF_ERROR;
   }
 
   shm_zone->init = ngx_keyval_init_zone;
@@ -304,7 +307,10 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   /* NOTE: for used check */
   shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
   if (shm_zone == NULL) {
-    return "failed to allocate shared memory";
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "\"%V\" failed to allocate memory or \"%V\" is already",
+                       &cmd->name, &name);
+    return NGX_CONF_ERROR;
   }
   shm_zone->init = ngx_keyval_init_zone_none;
 
