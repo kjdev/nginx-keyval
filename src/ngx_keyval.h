@@ -78,6 +78,9 @@ ngx_int_t ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm
 
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
 void ngx_keyval_redis_cleanup_ctx(void *data);
+redisContext *ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx, ngx_keyval_redis_conf_t *conf, ngx_log_t *log);
+ngx_int_t ngx_keyval_redis_get_data(redisContext *ctx, ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val, ngx_pool_t *pool, ngx_log_t *log);
+ngx_int_t ngx_keyval_redis_set_data(redisContext *ctx, ngx_keyval_redis_conf_t *conf, ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val, ngx_log_t *log);
 #endif
 
 #endif /* NGX_KEYVAL_H */
