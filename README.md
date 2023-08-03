@@ -28,7 +28,7 @@ $ wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
 $ tar -zxf nginx-${NGINX_VERSION}.tar.gz
 $ cd nginx-${NGINX_VERSION}
 $ : "using redis store"
-$ : export NGX_HTTP_KEYVAL_ZONE_REDIS=1
+$ : export NGX_KEYVAL_ZONE_REDIS=1
 $ : "build module"
 $ ./configure --add-dynamic-module=../
 $ make && make install
@@ -44,8 +44,8 @@ $ docker run -p 80:80 -v $PWD/app.conf:/etc/nginx/http.d/default.conf nginx-keyv
 
 > Github package: ghcr.io/kjdev/nginx-keyval
 
-Configuration
--------------
+Configuration: `ngx_http_keyval_module`
+---------------------------------------
 
 ### Example
 
@@ -59,6 +59,73 @@ http {
     location / {
       return 200 $text;
     }
+  }
+}
+```
+
+### Directives
+
+```
+Syntax: keyval key $variable zone=name;
+Default: -
+Context: http
+```
+
+Creates a new `$variable` whose value is looked up by the `key`
+in the key-value database.
+
+The database is stored in shared memory or Redis as specified
+by the zone parameter.
+
+```
+Syntax: keyval_zone zone=name:size;
+Default: -
+Context: http
+```
+
+Sets the `name` and `size` of the shared memory zone that
+keeps the key-value database.
+
+```
+Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
+Default: -
+Context: http
+```
+
+> Using the Redis store
+
+Sets the `name` of the Redis zone that keeps the key-value database.
+
+The optional `hostname` parameter sets the Redis hostname
+(default value is `127.0.0.1`).
+
+The optional `port` parameter sets the Redis port
+(default value is `6379`).
+
+The optional `database` parameter sets the Redis database number
+(default value is `0`).
+
+The optional `connect_timeout` parameter sets the Redis connection
+timeout seconds (default value is `3`).
+
+The optional `ttl` parameter sets the time to live
+which key-value pairs are removed (default value is `0` seconds).
+
+Configuration: `ngx_stream_keyval_module`
+---------------------------------------
+
+### Example
+
+```
+stream {
+  keyval_zone zone=one:32k;
+  keyval $ssl_server_name $name zone=one;
+
+  server {
+    listen 12345 ssl;
+    proxy_pass $name;
+    ssl_certificate /usr/share/nginx/conf/cert.pem;
+    ssl_certificate_key /usr/share/nginx/conf/cert.key;
   }
 }
 ```
