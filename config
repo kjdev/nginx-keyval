@@ -29,3 +29,14 @@ if [ $HTTP != NO ]; then
 
    . auto/module
 fi
+
+if [ $STREAM != NO ]; then
+   ngx_module_type=STREAM
+   ngx_module_name=ngx_stream_keyval_module
+   ngx_module_srcs="$ngx_addon_dir/src/ngx_stream_keyval_module.c $KEYVAL_SRCS"
+   ngx_module_deps=
+   ngx_module_incs="$ngx_addon_dir/src"
+   ngx_module_libs="$NGX_KEYVAL_LIBS"
+
+   . auto/module
+fi
