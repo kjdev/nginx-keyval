@@ -8,8 +8,8 @@
 #endif
 
 typedef enum {
-  NGX_HTTP_KEYVAL_ZONE_SHM,
-  NGX_HTTP_KEYVAL_ZONE_REDIS
+  NGX_KEYVAL_ZONE_SHM,
+  NGX_KEYVAL_ZONE_REDIS
 } ngx_keyval_zone_type_t;
 
 typedef struct {

@@ -116,8 +116,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
   config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
 
-  zone = ngx_keyval_conf_zone_add(cf, cmd, config,
-                                  &name, NGX_HTTP_KEYVAL_ZONE_SHM);
+  zone = ngx_keyval_conf_zone_add(cf, cmd, config, &name, NGX_KEYVAL_ZONE_SHM);
   if (zone == NULL) {
     return NGX_CONF_ERROR;
   }
@@ -164,7 +163,7 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
   config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
 
   zone = ngx_keyval_conf_zone_add(cf, cmd, config,
-                                  &name, NGX_HTTP_KEYVAL_ZONE_REDIS);
+                                  &name, NGX_KEYVAL_ZONE_REDIS);
   if (zone == NULL) {
     return NGX_CONF_ERROR;
   }
@@ -319,13 +318,13 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
     return "zone not found";
   }
 
-  if (var->zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
+  if (var->zone->type == NGX_KEYVAL_ZONE_SHM) {
     var->zone->shm = ngx_shared_memory_add(cf, &value[3], 0,
                                            &ngx_http_keyval_module);
     if (var->zone->shm == NULL) {
       return "failed to allocate shared memory";
     }
-  } else if (var->zone->type != NGX_HTTP_KEYVAL_ZONE_REDIS) {
+  } else if (var->zone->type != NGX_KEYVAL_ZONE_REDIS) {
     return "invalid zone type";
   }
 
@@ -740,10 +739,10 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
   val.data = v->data;
   val.len = v->len;
 
-  if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
+  if (zone->type == NGX_KEYVAL_ZONE_SHM) {
     ngx_http_keyval_shm_set_data(r, zone->shm, &key, &val);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
-  } else if (zone->type == NGX_HTTP_KEYVAL_ZONE_REDIS) {
+  } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     ngx_http_keyval_redis_set_data(r, &zone->redis, &zone->name, &key, &val);
 #endif
   } else {
@@ -766,10 +765,10 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
     return NGX_OK;
   }
 
-  if (zone->type == NGX_HTTP_KEYVAL_ZONE_SHM) {
+  if (zone->type == NGX_KEYVAL_ZONE_SHM) {
     rc = ngx_http_keyval_shm_get_data(r, zone->shm, &key, &val);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
-  } else if (zone->type == NGX_HTTP_KEYVAL_ZONE_REDIS) {
+  } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     rc = ngx_http_keyval_redis_get_data(r,
                                         &zone->redis, &zone->name,
                                         &key, &val);
