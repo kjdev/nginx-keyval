@@ -6,7 +6,7 @@ ngx_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
                                ngx_rbtree_node_t *sentinel)
 {
   ngx_rbtree_node_t **p;
-  ngx_http_keyval_node_t *n, *nt;
+  ngx_keyval_node_t *n, *nt;
 
   for ( ;; ) {
     if (node->key < temp->key) {
@@ -14,8 +14,8 @@ ngx_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
     } else if (node->key > temp->key) {
       p = &temp->right;
     } else { /* node->key == temp->key */
-      n = (ngx_http_keyval_node_t *) &node->color;
-      nt = (ngx_http_keyval_node_t *) &temp->color;
+      n = (ngx_keyval_node_t *) &node->color;
+      nt = (ngx_keyval_node_t *) &temp->color;
       p = (ngx_memn2cmp(n->data, nt->data, n->len, nt->len) < 0)
         ? &temp->left : &temp->right;
     }
@@ -37,7 +37,7 @@ ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash)
 {
   ngx_int_t rc;
   ngx_rbtree_node_t *node, *sentinel;
-  ngx_http_keyval_node_t *n;
+  ngx_keyval_node_t *n;
 
   node = rbtree->root;
   sentinel = rbtree->sentinel;
@@ -54,7 +54,7 @@ ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash)
     }
 
     /* hash == node->key */
-    n = (ngx_http_keyval_node_t *) &node->color;
+    n = (ngx_keyval_node_t *) &node->color;
 
     rc = ngx_memn2cmp(key->data, n->data, key->len, (size_t) n->len);
     if (rc == 0) {
@@ -72,7 +72,7 @@ ngx_int_t
 ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
 {
   size_t len;
-  ngx_http_keyval_shm_ctx_t *ctx, *octx;
+  ngx_keyval_shm_ctx_t *ctx, *octx;
 
   octx = data;
   ctx = shm_zone->data;
@@ -90,7 +90,7 @@ ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
     return NGX_OK;
   }
 
-  ctx->sh = ngx_slab_alloc(ctx->shpool, sizeof(ngx_http_keyval_sh_t));
+  ctx->sh = ngx_slab_alloc(ctx->shpool, sizeof(ngx_keyval_sh_t));
   if (ctx->sh == NULL) {
     return NGX_ERROR;
   }
@@ -115,12 +115,12 @@ ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
   return NGX_OK;
 }
 
-ngx_http_keyval_zone_t *
+ngx_keyval_zone_t *
 ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
-                         ngx_http_keyval_conf_t *conf, ngx_str_t *name)
+                         ngx_keyval_conf_t *conf, ngx_str_t *name)
 {
   ngx_uint_t i;
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_zone_t *zone;
 
   if (!conf || !conf->zones || conf->zones->nelts == 0) {
     return NULL;
@@ -138,12 +138,12 @@ ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
   return NULL;
 }
 
-ngx_http_keyval_zone_t *
+ngx_keyval_zone_t *
 ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
-                         ngx_http_keyval_conf_t *conf, ngx_str_t *name,
-                         ngx_http_keyval_zone_type_t type)
+                         ngx_keyval_conf_t *conf, ngx_str_t *name,
+                         ngx_keyval_zone_type_t type)
 {
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_zone_t *zone;
 
   if (!conf) {
     ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -183,9 +183,9 @@ ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
 void *
 ngx_keyval_create_main_conf(ngx_conf_t *cf)
 {
-  ngx_http_keyval_conf_t *conf;
+  ngx_keyval_conf_t *conf;
 
-  conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_keyval_conf_t));
+  conf = ngx_pcalloc(cf->pool, sizeof(ngx_keyval_conf_t));
   if (conf == NULL) {
     return NULL;
   }
@@ -200,7 +200,7 @@ ngx_keyval_create_main_conf(ngx_conf_t *cf)
 void
 ngx_keyval_redis_cleanup_ctx(void *data)
 {
-  ngx_http_keyval_redis_ctx_t *ctx = data;
+  ngx_keyval_redis_ctx_t *ctx = data;
 
   if (ctx && ctx->redis) {
     redisFree(ctx->redis);

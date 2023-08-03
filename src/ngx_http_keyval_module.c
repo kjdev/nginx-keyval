@@ -66,9 +66,9 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
   ssize_t size;
   ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
-  ngx_http_keyval_conf_t *config;
-  ngx_http_keyval_shm_ctx_t *ctx;
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_conf_t *config;
+  ngx_keyval_shm_ctx_t *ctx;
+  ngx_keyval_zone_t *zone;
 
   value = cf->args->elts;
 
@@ -122,7 +122,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_ERROR;
   }
 
-  ctx = ngx_pcalloc(cf->pool, sizeof(ngx_http_keyval_shm_ctx_t));
+  ctx = ngx_pcalloc(cf->pool, sizeof(ngx_keyval_shm_ctx_t));
   if (ctx == NULL) {
     return "failed to allocate";
   }
@@ -145,8 +145,8 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
 {
   ngx_uint_t i;
   ngx_str_t name, *value;
-  ngx_http_keyval_conf_t *config;
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_conf_t *config;
+  ngx_keyval_zone_t *zone;
 
   value = cf->args->elts;
 
@@ -268,8 +268,8 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
   ngx_uint_t flags;
   ngx_str_t *value;
   ngx_http_variable_t *v;
-  ngx_http_keyval_conf_t *config;
-  ngx_http_keyval_variable_t *var;
+  ngx_keyval_conf_t *config;
+  ngx_keyval_variable_t *var;
 
   value = cf->args->elts;
 
@@ -345,8 +345,7 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
 
 static ngx_int_t
 ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
-                                 ngx_http_keyval_variable_t *var,
-                                 ngx_str_t *key)
+                                 ngx_keyval_variable_t *var, ngx_str_t *key)
 {
   if (!key || !var) {
     return NGX_ERROR;
@@ -372,10 +371,10 @@ ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
 
 static ngx_int_t
 ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
-                              ngx_str_t *key, ngx_http_keyval_zone_t **zone)
+                              ngx_str_t *key, ngx_keyval_zone_t **zone)
 {
-  ngx_http_keyval_conf_t *cf;
-  ngx_http_keyval_variable_t *var;
+  ngx_keyval_conf_t *cf;
+  ngx_keyval_variable_t *var;
 
   if (data == 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -390,7 +389,7 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
     return NGX_ERROR;
   }
 
-  var = (ngx_http_keyval_variable_t *) data;
+  var = (ngx_keyval_variable_t *) data;
 
   if (ngx_http_keyval_variable_get_key(r, var, key) != NGX_OK) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -409,10 +408,10 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
   return NGX_OK;
 }
 
-static ngx_http_keyval_shm_ctx_t *
+static ngx_keyval_shm_ctx_t *
 ngx_http_keyval_shm_get_context(ngx_http_request_t *r, ngx_shm_zone_t *shm)
 {
-  ngx_http_keyval_shm_ctx_t *ctx;
+  ngx_keyval_shm_ctx_t *ctx;
 
   if (!shm) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -437,8 +436,8 @@ ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
 {
   uint32_t hash;
   ngx_rbtree_node_t *node;
-  ngx_http_keyval_node_t *kv;
-  ngx_http_keyval_shm_ctx_t *ctx;
+  ngx_keyval_node_t *kv;
+  ngx_keyval_shm_ctx_t *ctx;
 
   if (!shm || !key || !val) {
     return NGX_ERROR;
@@ -461,7 +460,7 @@ ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
     return NGX_DECLINED;
   }
 
-  kv = (ngx_http_keyval_node_t *) &node->color;
+  kv = (ngx_keyval_node_t *) &node->color;
 
   // key->len = kv->len;
   // key->data = kv->data;
@@ -480,7 +479,7 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
   size_t n;
   ngx_int_t rc;
   ngx_rbtree_node_t *node;
-  ngx_http_keyval_shm_ctx_t *ctx;
+  ngx_keyval_shm_ctx_t *ctx;
 
   if (!shm || !key || !val) {
     return NGX_ERROR;
@@ -502,7 +501,7 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
   }
 
   n = offsetof(ngx_rbtree_node_t, color)
-    + offsetof(ngx_http_keyval_node_t, data)
+    + offsetof(ngx_keyval_node_t, data)
     + key->len
     + val->len;
 
@@ -512,8 +511,8 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
                   "keyval: failed to allocate slab");
     rc = NGX_ERROR;
   } else {
-    ngx_http_keyval_node_t *kv;
-    kv = (ngx_http_keyval_node_t *) &node->color;
+    ngx_keyval_node_t *kv;
+    kv = (ngx_keyval_node_t *) &node->color;
 
     node->key = hash;
     kv->size = key->len + val->len;
@@ -532,18 +531,18 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
 }
 
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
-static ngx_http_keyval_redis_ctx_t *
+static ngx_keyval_redis_ctx_t *
 ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
 {
   ngx_pool_cleanup_t *cleanup;
-  ngx_http_keyval_redis_ctx_t *ctx;
+  ngx_keyval_redis_ctx_t *ctx;
 
   ctx = ngx_http_get_module_ctx(r, ngx_http_keyval_module);
   if (ctx != NULL) {
     return ctx;
   }
 
-  ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_keyval_redis_ctx_t));
+  ctx = ngx_pcalloc(r->pool, sizeof(ngx_keyval_redis_ctx_t));
   if (ctx == NULL) {
     ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
                   "keyval: failed to allocate redis context");
@@ -568,10 +567,10 @@ ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
 
 static redisContext *
 ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
-                                  ngx_http_keyval_redis_t *redis)
+                                  ngx_keyval_redis_conf_t *redis)
 {
   struct timeval timeout = { 0, 0 };
-  ngx_http_keyval_redis_ctx_t *ctx;
+  ngx_keyval_redis_ctx_t *ctx;
 
   ctx = ngx_http_keyval_redis_get_ctx(r);
   if (!ctx) {
@@ -623,7 +622,7 @@ ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
 
 static ngx_int_t
 ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
-                               ngx_http_keyval_redis_t *redis,
+                               ngx_keyval_redis_conf_t *redis,
                                ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
 {
   ngx_int_t rc = NGX_ERROR;
@@ -679,7 +678,7 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
 
 static ngx_int_t
 ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
-                               ngx_http_keyval_redis_t *redis,
+                               ngx_keyval_redis_conf_t *redis,
                                ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
 {
   ngx_int_t rc = NGX_ERROR;
@@ -732,7 +731,7 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
                                      uintptr_t data)
 {
   ngx_str_t key, val;
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_zone_t *zone;
 
   if (ngx_http_keyval_variable_init(r, data, &key, &zone) != NGX_OK) {
     return;
@@ -760,7 +759,7 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
 {
   ngx_int_t rc;
   ngx_str_t key, val;
-  ngx_http_keyval_zone_t *zone;
+  ngx_keyval_zone_t *zone;
 
   if (ngx_http_keyval_variable_init(r, data, &key, &zone) != NGX_OK) {
     v->not_found = 1;
