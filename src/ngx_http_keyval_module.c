@@ -61,14 +61,18 @@ ngx_module_t ngx_http_keyval_module = {
 };
 
 static char *
-ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
+                         ngx_keyval_conf_t *config, void *tag)
 {
   ssize_t size;
   ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
-  ngx_keyval_conf_t *config;
   ngx_keyval_shm_ctx_t *ctx;
   ngx_keyval_zone_t *zone;
+
+  if (!config || !tag) {
+    return "missing required parameter";
+  }
 
   value = cf->args->elts;
 
@@ -114,8 +118,6 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return "must have \"zone\" parameter";
   }
 
-  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
-
   zone = ngx_keyval_conf_zone_add(cf, cmd, config, &name, NGX_KEYVAL_ZONE_SHM);
   if (zone == NULL) {
     return NGX_CONF_ERROR;
@@ -126,7 +128,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return "failed to allocate";
   }
 
-  shm_zone = ngx_shared_memory_add(cf, &name, size, &ngx_http_keyval_module);
+  shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
   if (shm_zone == NULL) {
     return "failed to allocate shared memory";
   }
@@ -137,15 +139,29 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
   return NGX_CONF_OK;
 }
 
+static char *
+ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+  ngx_keyval_conf_t *config;
+
+  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
+
+  return ngx_keyval_conf_set_zone(cf, cmd, conf,
+                                  config, &ngx_http_keyval_module);
+}
+
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
 static char *
-ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
-                                    ngx_command_t *cmd, void *conf)
+ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
+                               ngx_keyval_conf_t *config)
 {
   ngx_uint_t i;
   ngx_str_t name, *value;
-  ngx_keyval_conf_t *config;
   ngx_keyval_zone_t *zone;
+
+  if (!config) {
+    return "missing required parameter";
+  }
 
   value = cf->args->elts;
 
@@ -159,8 +175,6 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
   if (name.len == 0) {
     return "must have \"zone\" parameter";
   }
-
-  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
 
   zone = ngx_keyval_conf_zone_add(cf, cmd, config,
                                   &name, NGX_KEYVAL_ZONE_REDIS);
@@ -258,17 +272,30 @@ ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
 
   return NGX_CONF_OK;
 }
+
+static char *
+ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
+                                    ngx_command_t *cmd, void *conf)
+{
+  ngx_keyval_conf_t *config;
+
+  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
+
+  return ngx_keyval_conf_set_zone_redis(cf, cmd, conf, config);
+}
 #endif
 
 static char *
-ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
-                                  ngx_command_t *cmd, void *conf)
+ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
+                             ngx_keyval_conf_t *config, void *tag,
+                             ngx_keyval_variable_t **var,
+                             ngx_keyval_get_variable_index get_variable_index)
 {
-  ngx_uint_t flags;
   ngx_str_t *value;
-  ngx_http_variable_t *v;
-  ngx_keyval_conf_t *config;
-  ngx_keyval_variable_t *var;
+
+  if (!config || !tag) {
+    return "missing required parameter";
+  }
 
   value = cf->args->elts;
 
@@ -288,49 +315,73 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
   value[3].data += 5;
   value[3].len -= 5;
 
-  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
   if (config->variables == NULL) {
-    config->variables = ngx_array_create(cf->pool, 4, sizeof(*var));
+    config->variables = ngx_array_create(cf->pool, 4,
+                                         sizeof(ngx_keyval_variable_t));
     if (config->variables == NULL) {
       return "failed to allocate";
     }
   }
 
-  var = ngx_array_push(config->variables);
-  if (var == NULL) {
+  *var = ngx_array_push(config->variables);
+  if (*var == NULL) {
     return "failed to allocate iteam";
   }
 
   if (value[1].data[0] == '$') {
     value[1].data++;
     value[1].len--;
-    var->key_index = ngx_http_get_variable_index(cf, &value[1]);
-    ngx_str_null(&var->key_string);
+    (*var)->key_index = get_variable_index(cf, &value[1]);
+    ngx_str_null(&((*var)->key_string));
   } else {
-    var->key_index = NGX_CONF_UNSET;
-    var->key_string = value[1];
+    (*var)->key_index = NGX_CONF_UNSET;
+    (*var)->key_string = value[1];
   }
 
-  var->variable = value[2];
+  (*var)->variable = value[2];
 
-  var->zone = ngx_keyval_conf_zone_get(cf, cmd, config, &value[3]);
-  if (var->zone == NULL) {
+  (*var)->zone = ngx_keyval_conf_zone_get(cf, cmd, config, &value[3]);
+  if ((*var)->zone == NULL) {
     return "zone not found";
   }
 
-  if (var->zone->type == NGX_KEYVAL_ZONE_SHM) {
-    var->zone->shm = ngx_shared_memory_add(cf, &value[3], 0,
-                                           &ngx_http_keyval_module);
-    if (var->zone->shm == NULL) {
+  if ((*var)->zone->type == NGX_KEYVAL_ZONE_SHM) {
+    (*var)->zone->shm = ngx_shared_memory_add(cf, &value[3], 0, tag);
+    if ((*var)->zone->shm == NULL) {
       return "failed to allocate shared memory";
     }
-  } else if (var->zone->type != NGX_KEYVAL_ZONE_REDIS) {
+  } else if ((*var)->zone->type != NGX_KEYVAL_ZONE_REDIS) {
     return "invalid zone type";
+  }
+
+  return NGX_CONF_OK;
+}
+
+static char *
+ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
+                                  ngx_command_t *cmd, void *conf)
+{
+  char *retval;
+  ngx_uint_t flags;
+  ngx_http_variable_t *v;
+  ngx_keyval_conf_t *config;
+  ngx_keyval_variable_t *var = NULL;
+
+  config = ngx_http_conf_get_module_main_conf(cf, ngx_http_keyval_module);
+
+  retval = ngx_keyval_conf_set_variable(cf, cmd, conf,
+                                        config, &ngx_http_keyval_module, &var,
+                                        ngx_http_get_variable_index);
+  if (retval != NGX_CONF_OK) {
+    return retval;
+  }
+  if (!var) {
+    return "failed to allocate";
   }
 
   /* add variable */
   flags = NGX_HTTP_VAR_CHANGEABLE | NGX_HTTP_VAR_NOCACHEABLE;
-  v = ngx_http_add_variable(cf, &value[2], flags);
+  v = ngx_http_add_variable(cf, &(var->variable), flags);
   if (v == NULL) {
     return "failed to add variable";
   }

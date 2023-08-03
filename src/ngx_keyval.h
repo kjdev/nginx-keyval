@@ -62,6 +62,8 @@ typedef struct {
 } ngx_keyval_redis_ctx_t;
 #endif
 
+typedef ngx_int_t (*ngx_keyval_get_variable_index)(ngx_conf_t *cf, ngx_str_t *name);
+
 ngx_rbtree_node_t *ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash);
 ngx_int_t ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);
 ngx_keyval_zone_t *ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd, ngx_keyval_conf_t *conf, ngx_str_t *name);
