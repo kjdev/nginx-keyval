@@ -186,19 +186,19 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
 }
 
 static ngx_keyval_shm_ctx_t *
-ngx_http_keyval_shm_get_context(ngx_http_request_t *r, ngx_shm_zone_t *shm)
+ngx_keyval_shm_get_context(ngx_shm_zone_t *shm, ngx_log_t *log)
 {
   ngx_keyval_shm_ctx_t *ctx;
 
   if (!shm) {
-    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_INFO, log, 0,
                   "keyval: rejected due to not found shared memory zone");
     return NULL;
   }
 
   ctx = shm->data;
   if (!ctx) {
-    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_INFO, log, 0,
                   "keyval: rejected due to not found shared memory context");
     return NULL;
   }
@@ -207,21 +207,14 @@ ngx_http_keyval_shm_get_context(ngx_http_request_t *r, ngx_shm_zone_t *shm)
 }
 
 static ngx_int_t
-ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
-                             ngx_shm_zone_t *shm,
-                             ngx_str_t *key, ngx_str_t *val)
+ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
+                        ngx_str_t *key, ngx_str_t *val)
 {
   uint32_t hash;
   ngx_rbtree_node_t *node;
   ngx_keyval_node_t *kv;
-  ngx_keyval_shm_ctx_t *ctx;
 
-  if (!shm || !key || !val) {
-    return NGX_ERROR;
-  }
-
-  ctx = ngx_http_keyval_shm_get_context(r, shm);
-  if (!ctx) {
+  if (!ctx || !shm || !key || !val) {
     return NGX_ERROR;
   }
 
@@ -249,21 +242,15 @@ ngx_http_keyval_shm_get_data(ngx_http_request_t *r,
 }
 
 static ngx_int_t
-ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
-                             ngx_str_t *key, ngx_str_t *val)
+ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
+                        ngx_str_t *key, ngx_str_t *val, ngx_log_t *log)
 {
   uint32_t hash;
   size_t n;
   ngx_int_t rc;
   ngx_rbtree_node_t *node;
-  ngx_keyval_shm_ctx_t *ctx;
 
-  if (!shm || !key || !val) {
-    return NGX_ERROR;
-  }
-
-  ctx = ngx_http_keyval_shm_get_context(r, shm);
-  if (!ctx) {
+  if (!ctx || !shm || !key || !val) {
     return NGX_ERROR;
   }
 
@@ -284,7 +271,7 @@ ngx_http_keyval_shm_set_data(ngx_http_request_t *r, ngx_shm_zone_t *shm,
 
   node = ngx_slab_alloc_locked(ctx->shpool, n);
   if (node == NULL) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to allocate slab");
     rc = NGX_ERROR;
   } else {
@@ -518,7 +505,10 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
   val.len = v->len;
 
   if (zone->type == NGX_KEYVAL_ZONE_SHM) {
-    ngx_http_keyval_shm_set_data(r, zone->shm, &key, &val);
+    ngx_keyval_shm_ctx_t *ctx;
+
+    ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
+    ngx_keyval_shm_set_data(ctx, zone->shm, &key, &val, r->connection->log);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     ngx_http_keyval_redis_set_data(r, &zone->redis, &zone->name, &key, &val);
@@ -544,7 +534,10 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
   }
 
   if (zone->type == NGX_KEYVAL_ZONE_SHM) {
-    rc = ngx_http_keyval_shm_get_data(r, zone->shm, &key, &val);
+    ngx_keyval_shm_ctx_t *ctx;
+
+    ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
+    rc = ngx_keyval_shm_get_data(ctx, zone->shm, &key, &val);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     rc = ngx_http_keyval_redis_get_data(r,
