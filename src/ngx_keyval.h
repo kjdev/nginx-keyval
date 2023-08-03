@@ -65,9 +65,12 @@ typedef struct {
 typedef ngx_int_t (*ngx_keyval_get_variable_index)(ngx_conf_t *cf, ngx_str_t *name);
 
 ngx_rbtree_node_t *ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash);
-ngx_int_t ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);
-ngx_keyval_zone_t *ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd, ngx_keyval_conf_t *conf, ngx_str_t *name);
-ngx_keyval_zone_t *ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd, ngx_keyval_conf_t *conf, ngx_str_t *name, ngx_keyval_zone_type_t type);
+
+char *ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
+#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+char *ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config);
+#endif
+char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag, ngx_keyval_variable_t **var, ngx_keyval_get_variable_index get_variable_index);
 
 void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 
