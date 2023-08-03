@@ -32,7 +32,7 @@ ngx_keyval_rbtree_insert_value(ngx_rbtree_node_t *temp,
   ngx_rbt_red(node);
 }
 
-ngx_rbtree_node_t *
+static ngx_rbtree_node_t *
 ngx_keyval_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *key, uint32_t hash)
 {
   ngx_int_t rc;
@@ -469,6 +469,115 @@ ngx_keyval_create_main_conf(ngx_conf_t *cf)
   conf->zones = NULL;
 
   return conf;
+}
+
+ngx_keyval_shm_ctx_t *
+ngx_keyval_shm_get_context(ngx_shm_zone_t *shm, ngx_log_t *log)
+{
+  ngx_keyval_shm_ctx_t *ctx;
+
+  if (!shm) {
+    ngx_log_error(NGX_LOG_INFO, log, 0,
+                  "keyval: rejected due to not found shared memory zone");
+    return NULL;
+  }
+
+  ctx = shm->data;
+  if (!ctx) {
+    ngx_log_error(NGX_LOG_INFO, log, 0,
+                  "keyval: rejected due to not found shared memory context");
+    return NULL;
+  }
+
+  return ctx;
+}
+
+ngx_int_t
+ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
+                        ngx_str_t *key, ngx_str_t *val)
+{
+  uint32_t hash;
+  ngx_rbtree_node_t *node;
+  ngx_keyval_node_t *kv;
+
+  if (!ctx || !shm || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  hash = ngx_crc32_short(key->data, key->len);
+
+  ngx_shmtx_lock(&ctx->shpool->mutex);
+
+  node = ngx_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
+
+  ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+  if (node == NULL) {
+    return NGX_DECLINED;
+  }
+
+  kv = (ngx_keyval_node_t *) &node->color;
+
+  // key->len = kv->len;
+  // key->data = kv->data;
+
+  val->len = kv->size - kv->len;
+  val->data = kv->data + kv->len;
+
+  return NGX_OK;
+}
+
+ngx_int_t
+ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
+                        ngx_str_t *key, ngx_str_t *val, ngx_log_t *log)
+{
+  uint32_t hash;
+  size_t n;
+  ngx_int_t rc;
+  ngx_rbtree_node_t *node;
+
+  if (!ctx || !shm || !key || !val) {
+    return NGX_ERROR;
+  }
+
+  hash = ngx_crc32_short(key->data, key->len);
+
+  ngx_shmtx_lock(&ctx->shpool->mutex);
+
+  node = ngx_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
+  if (node != NULL) {
+    ngx_rbtree_delete(&ctx->sh->rbtree, node);
+    ngx_slab_free_locked(ctx->shpool, node);
+  }
+
+  n = offsetof(ngx_rbtree_node_t, color)
+    + offsetof(ngx_keyval_node_t, data)
+    + key->len
+    + val->len;
+
+  node = ngx_slab_alloc_locked(ctx->shpool, n);
+  if (node == NULL) {
+    ngx_log_error(NGX_LOG_ERR, log, 0,
+                  "keyval: failed to allocate slab");
+    rc = NGX_ERROR;
+  } else {
+    ngx_keyval_node_t *kv;
+    kv = (ngx_keyval_node_t *) &node->color;
+
+    node->key = hash;
+    kv->size = key->len + val->len;
+    kv->len = key->len;
+    ngx_memcpy(kv->data, key->data, key->len);
+    ngx_memcpy(kv->data + key->len, val->data, val->len);
+
+    ngx_rbtree_insert(&ctx->sh->rbtree, node);
+
+    rc = NGX_OK;
+  }
+
+  ngx_shmtx_unlock(&ctx->shpool->mutex);
+
+  return rc;
 }
 
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
