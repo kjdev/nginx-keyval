@@ -259,7 +259,7 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   return NGX_CONF_OK;
 }
 
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 char *
 ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                                ngx_keyval_conf_t *config)
@@ -580,7 +580,7 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
   return rc;
 }
 
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 void
 ngx_keyval_redis_cleanup_ctx(void *data)
 {

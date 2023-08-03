@@ -2,7 +2,7 @@
 #include "ngx_keyval.h"
 
 static char *ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 static char *ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 #endif
 static char *ngx_http_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -23,7 +23,7 @@ static ngx_command_t ngx_http_keyval_commands[] = {
     0,
     0,
     NULL },
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
   { ngx_string("keyval_zone_redis"),
     NGX_HTTP_MAIN_CONF|NGX_CONF_1MORE,
     ngx_http_keyval_conf_set_zone_redis,
@@ -71,7 +71,7 @@ ngx_http_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                                   config, &ngx_http_keyval_module);
 }
 
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 static char *
 ngx_http_keyval_conf_set_zone_redis(ngx_conf_t *cf,
                                     ngx_command_t *cmd, void *conf)
@@ -185,7 +185,7 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
   return NGX_OK;
 }
 
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 static ngx_keyval_redis_ctx_t *
 ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
 {
@@ -241,7 +241,7 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
 
     ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
     ngx_keyval_shm_set_data(ctx, zone->shm, &key, &val, r->connection->log);
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     ngx_keyval_redis_ctx_t *ctx;
     redisContext *context;
@@ -277,7 +277,7 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
 
     ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
     rc = ngx_keyval_shm_get_data(ctx, zone->shm, &key, &val);
-#if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
     ngx_keyval_redis_ctx_t *ctx;
     redisContext *context;

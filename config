@@ -1,9 +1,14 @@
 
+# deprecated: for compatibility
 if [ -n "$NGX_HTTP_KEYVAL_ZONE_REDIS" ]; then
+  NGX_KEYVAL_ZONE_REDIS=1
+fi
+
+if [ -n "$NGX_KEYVAL_ZONE_REDIS" ]; then
   cat << END >> $NGX_AUTO_CONFIG_H
 
-#ifndef NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS
-#define NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS 1
+#ifndef NGX_HAVE_KEYVAL_ZONE_REDIS
+#define NGX_HAVE_KEYVAL_ZONE_REDIS 1
 #endif
 
 END
