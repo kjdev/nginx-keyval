@@ -221,14 +221,12 @@ ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
 }
 
 static redisContext *
-ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
-                                  ngx_keyval_redis_conf_t *redis)
+ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx,
+                             ngx_keyval_redis_conf_t *conf, ngx_log_t *log)
 {
   struct timeval timeout = { 0, 0 };
-  ngx_keyval_redis_ctx_t *ctx;
 
-  ctx = ngx_http_keyval_redis_get_ctx(r);
-  if (!ctx) {
+  if (!ctx || !conf) {
     return NULL;
   }
 
@@ -236,35 +234,35 @@ ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
     return ctx->redis;
   }
 
-  timeout.tv_sec = redis->connect_timeout;
+  timeout.tv_sec = conf->connect_timeout;
 
-  ctx->redis = redisConnectWithTimeout((char *)redis->hostname, redis->port,
+  ctx->redis = redisConnectWithTimeout((char *) conf->hostname, conf->port,
                                        timeout);
   if (!ctx->redis) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to connect redis: "
                   "hostname=%s port=%d connect_timeout=%ds",
-                  (char *)redis->hostname, redis->port, redis->connect_timeout);
+                  (char *) conf->hostname, conf->port, conf->connect_timeout);
     return NULL;
   } else if (ctx->redis->err) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to connect redis: "
                   "hostname=%s port=%d connect_timeout=%ds: %s",
-                  (char *)redis->hostname, redis->port, redis->connect_timeout,
+                  (char *) conf->hostname, conf->port, conf->connect_timeout,
                   ctx->redis->errstr);
     return NULL;
   }
 
-  if (redis->db > 0) {
+  if (conf->db > 0) {
     redisReply *resp = NULL;
 
-    resp = (redisReply *) redisCommand(ctx->redis, "SELECT %d", redis->db);
+    resp = (redisReply *) redisCommand(ctx->redis, "SELECT %d", conf->db);
     if (!resp) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+      ngx_log_error(NGX_LOG_ERR, log, 0,
                     "keyval: failed to command redis: SELECT");
       return NULL;
     } else if (resp->type == REDIS_REPLY_ERROR) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+      ngx_log_error(NGX_LOG_ERR, log, 0,
                     "keyval: failed to command redis: SELECT: %s", resp->str);
       freeReplyObject(resp);
       return NULL;
@@ -276,20 +274,13 @@ ngx_http_keyval_redis_get_context(ngx_http_request_t *r,
 }
 
 static ngx_int_t
-ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
-                               ngx_keyval_redis_conf_t *redis,
-                               ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
+ngx_keyval_redis_get_data(redisContext *ctx, ngx_str_t *zone, ngx_str_t *key,
+                          ngx_str_t *val, ngx_pool_t *pool, ngx_log_t *log)
 {
   ngx_int_t rc = NGX_ERROR;
-  redisContext *ctx = NULL;
   redisReply *resp = NULL;
 
-  if (!redis || !zone || !key || !val) {
-    return NGX_ERROR;
-  }
-
-  ctx = ngx_http_keyval_redis_get_context(r, redis);
-  if (ctx == NULL) {
+  if (!ctx || !zone || !key || !val) {
     return NGX_ERROR;
   }
 
@@ -297,7 +288,7 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
                                      zone->data, zone->len,
                                      key->data, key->len);
   if (!resp) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to command redis: GET");
     return NGX_ERROR;
   }
@@ -305,7 +296,7 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
   if (resp->type == REDIS_REPLY_STRING) {
     u_char *str;
 
-    str = ngx_pnalloc(r->pool, resp->len + 1);
+    str = ngx_pnalloc(pool, resp->len + 1);
     if (str) {
       ngx_memcpy(str, resp->str, resp->len);
       str[resp->len] = '\0';
@@ -315,14 +306,14 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
 
       rc = NGX_OK;
     } else {
-      ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+      ngx_log_error(NGX_LOG_CRIT, log, 0,
                     "keyval: failed to allocate redis reply");
     }
   } else if (resp->type == REDIS_REPLY_ERROR) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to command redis: GET: %s", resp->str);
   } else {
-    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_INFO, log, 0,
                   "keyval: failed to command redis: GET: type: %d", resp->type);
   }
 
@@ -332,24 +323,18 @@ ngx_http_keyval_redis_get_data(ngx_http_request_t *r,
 }
 
 static ngx_int_t
-ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
-                               ngx_keyval_redis_conf_t *redis,
-                               ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val)
+ngx_keyval_redis_set_data(redisContext *ctx, ngx_keyval_redis_conf_t *conf,
+                          ngx_str_t *zone, ngx_str_t *key, ngx_str_t *val,
+                          ngx_log_t *log)
 {
   ngx_int_t rc = NGX_ERROR;
-  redisContext *ctx = NULL;
   redisReply *resp = NULL;
 
-  if (!redis || !zone || !key || !val) {
+  if (!ctx || !conf || !zone || !key || !val) {
     return NGX_ERROR;
   }
 
-  ctx = ngx_http_keyval_redis_get_context(r, redis);
-  if (ctx == NULL) {
-    return NGX_ERROR;
-  }
-
-  if (redis->ttl == 0) {
+  if (conf->ttl == 0) {
     resp = (redisReply *) redisCommand(ctx, "SET %b:%b %b",
                                        zone->data, zone->len,
                                        key->data, key->len,
@@ -358,17 +343,17 @@ ngx_http_keyval_redis_set_data(ngx_http_request_t *r,
     resp = (redisReply *) redisCommand(ctx, "SETEX %b:%b %d %b",
                                        zone->data, zone->len,
                                        key->data, key->len,
-                                       redis->ttl, val->data, val->len);
+                                       conf->ttl, val->data, val->len);
   }
 
   if (!resp) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to command redis: SET|SETEX");
     return NGX_ERROR;
   }
 
   if (resp->type == REDIS_REPLY_ERROR) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+    ngx_log_error(NGX_LOG_ERR, log, 0,
                   "keyval: failed to command redis: SET|SETEX: %s", resp->str);
   } else {
     rc = NGX_OK;
@@ -402,7 +387,14 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
     ngx_keyval_shm_set_data(ctx, zone->shm, &key, &val, r->connection->log);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
-    ngx_http_keyval_redis_set_data(r, &zone->redis, &zone->name, &key, &val);
+    ngx_keyval_redis_ctx_t *ctx;
+    redisContext *context;
+
+    ctx = ngx_http_keyval_redis_get_ctx(r);
+    context = ngx_keyval_redis_get_context(ctx, &zone->redis,
+                                           r->connection->log);
+    ngx_keyval_redis_set_data(context, &zone->redis, &zone->name, &key, &val,
+                              r->connection->log);
 #endif
   } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -431,9 +423,14 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
     rc = ngx_keyval_shm_get_data(ctx, zone->shm, &key, &val);
 #if (NGX_HAVE_HTTP_KEYVAL_ZONE_REDIS)
   } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
-    rc = ngx_http_keyval_redis_get_data(r,
-                                        &zone->redis, &zone->name,
-                                        &key, &val);
+    ngx_keyval_redis_ctx_t *ctx;
+    redisContext *context;
+
+    ctx = ngx_http_keyval_redis_get_ctx(r);
+    context = ngx_keyval_redis_get_context(ctx, &zone->redis,
+                                           r->connection->log);
+    rc = ngx_keyval_redis_get_data(context, &zone->name, &key, &val,
+                                   r->pool, r->connection->log);
 #endif
   } else {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
