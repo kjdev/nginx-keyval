@@ -66,7 +66,7 @@ typedef ngx_int_t (*ngx_keyval_get_variable_index)(ngx_conf_t *cf, ngx_str_t *na
 
 char *ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
-char *ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config);
+char *ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #endif
 char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag, ngx_keyval_variable_t **var, ngx_keyval_get_variable_index get_variable_index);
 

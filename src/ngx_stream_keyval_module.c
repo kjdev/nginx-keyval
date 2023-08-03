@@ -78,7 +78,8 @@ ngx_stream_keyval_conf_set_zone_redis(ngx_conf_t *cf,
 
   config = ngx_stream_conf_get_module_main_conf(cf, ngx_stream_keyval_module);
 
-  return ngx_keyval_conf_set_zone_redis(cf, cmd, conf, config);
+  return ngx_keyval_conf_set_zone_redis(cf, cmd, conf,
+                                        config, &ngx_stream_keyval_module);
 }
 #endif
 

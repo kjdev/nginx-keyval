@@ -115,6 +115,14 @@ ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
   return NGX_OK;
 }
 
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
+static ngx_int_t
+ngx_keyval_init_zone_none(ngx_shm_zone_t *shm_zone, void *data)
+{
+  return NGX_OK;
+}
+#endif
+
 static ngx_keyval_zone_t *
 ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
                          ngx_keyval_conf_t *conf, ngx_str_t *name)
@@ -262,9 +270,11 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 char *
 ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
-                               ngx_keyval_conf_t *config)
+                               ngx_keyval_conf_t *config, void *tag)
 {
+  ssize_t size = 8 * ngx_pagesize;
   ngx_uint_t i;
+  ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
   ngx_keyval_zone_t *zone;
 
@@ -290,6 +300,13 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   if (zone == NULL) {
     return NGX_CONF_ERROR;
   }
+
+  /* NOTE: for used check */
+  shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
+  if (shm_zone == NULL) {
+    return "failed to allocate shared memory";
+  }
+  shm_zone->init = ngx_keyval_init_zone_none;
 
   /* redis default */
   zone->redis.hostname = NULL;
