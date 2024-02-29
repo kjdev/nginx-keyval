@@ -127,20 +127,56 @@ ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
     return NGX_ERROR;
   }
 
-  if (var->key_index != NGX_CONF_UNSET) {
-    ngx_stream_variable_value_t *v;
-    v = ngx_stream_get_indexed_variable(s, var->key_index);
-    if (v == NULL || v->not_found) {
-      ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-                    "keyval: variable specified was not provided");
-      return NGX_ERROR;
-    } else {
-      key->data = v->data;
-      key->len = v->len;
+  /* The same idea as in the ngx_http_keyval_variable_get_key function */
+
+  if (var->num_indexes != 0)
+  {
+    ngx_stream_variable_value_t *v[var->num_indexes];
+    ngx_int_t current_index = 0;
+    ngx_str_t string_var = var->key_string;
+    ngx_uint_t size_string = 0;
+    ngx_log_t log;
+
+    for (ngx_int_t i = 0 ; i < var->num_indexes ; i++)
+    {
+	    v[i] = ngx_stream_get_indexed_variable(s, var->key_indexes[i]);
+
+	    if (v[i] == NULL || v[i]-> not_found)
+	    {
+		    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+				    "keyval: variable specified was not provided");
+		    return NGX_ERROR;
+	    }
+
+	    size_string += v[i]->len;
     }
-  } else {
-    *key = var->key_string;
+
+    key->data = (u_char *) ngx_alloc(size_string + (string_var.len - var->num_indexes) + 1, &log);
+    key->len = 0;
+
+    u_char *last_space_available = key->data;
+
+    for ( ; *(string_var.data) != '\0' ; string_var.data++)
+    {
+	    if (*(string_var.data) == '$')
+	    {
+		    last_space_available = ngx_cpystrn(last_space_available, v[current_index]->data, v[current_index]->len + 1);
+		    key->len += v[current_index++]->len;
+	    }
+
+	    else
+	    {
+		    *last_space_available = *(string_var.data);
+		    last_space_available += sizeof(u_char);
+		    key->len++;
+	    }
+    }
+
+    *last_space_available = '\0';
   }
+
+  else
+	  *key = var->key_string;
 
   return NGX_OK;
 }

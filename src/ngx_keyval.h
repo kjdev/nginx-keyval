@@ -50,7 +50,8 @@ typedef struct {
 } ngx_keyval_zone_t;
 
 typedef struct {
-  ngx_int_t key_index;
+  ngx_int_t key_indexes[15];
+  ngx_int_t num_indexes;
   ngx_str_t key_string;
   ngx_str_t variable;
   ngx_keyval_zone_t *zone;

@@ -449,14 +449,64 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate iteam";
   }
 
-  if (value[1].data[0] == '$') {
-    value[1].data++;
-    value[1].len--;
-    (*var)->key_index = get_variable_index(cf, &value[1]);
-    ngx_str_null(&((*var)->key_string));
-  } else {
-    (*var)->key_index = NGX_CONF_UNSET;
-    (*var)->key_string = value[1];
+  u_char *string = value[1].data; // Different pointer to not affect the original
+
+  (*var)->key_string.len = 0;
+  (*var)->key_string.data = ngx_pnalloc(cf->pool, 10000); // Allocates space for intermediate string
+
+  if ( (*var)->key_string.data == NULL)
+	  return "failed to allocate memory for intermediate string";
+
+  int final_pos = 0; // Current index of the intermediate string
+  int count = 0; // Counts the number of vars (limited by 15)
+
+  while (*string != '\0')
+  {
+    if (*string == '$') // At least one var present
+    {
+      (*var)->key_string.data[final_pos++] = '$';
+      (*var)->key_string.len++;
+      string++;
+
+      int c = 0; // Index of the string that holds the name of the var we're reading
+
+      u_char aux[512] = {'\0'}; // Buffer for var name
+
+      while ((*string != ' ' && *string != ':' && *string != '"' &&
+          *string != '\'' && *string != '\\') && *string != '\0') // Take var chars until string end or see a delimiter
+      {
+        aux[c] = *string;
+        c++;
+        string++;
+      }
+
+      ngx_str_t str = ngx_string(aux); // Converts normal string to ngx_str_t
+      str.len = ngx_strlen(aux); // By Nginx doc, str.len is the sizeof of the buffer, which is 512. We take the length by strlen
+      (*var)->key_indexes[count] = get_variable_index(cf, &str); // Saves the index of the variable from nginx memory
+      count++; // One more var read
+    }
+
+    else // Normal char, read and proceed
+    {
+      (*var)->key_string.len++;
+      (*var)->key_string.data[final_pos++] = *string;
+      string++;
+    }
+
+    if (count == 15) // Max of 15 vars allowed
+      return "max variables reached";
+  }
+
+  if (count == 0) // There's no var on the string, just copies the format string
+  {
+	  (*var)->num_indexes = 0;
+	  (*var)->key_string = value[1];
+  }
+
+  else
+  {
+	  (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
+	  (*var)->num_indexes = count; // Saves the number of vars
   }
 
   (*var)->variable = value[2];
