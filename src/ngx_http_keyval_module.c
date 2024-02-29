@@ -129,20 +129,55 @@ ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
     return NGX_ERROR;
   }
 
-  if (var->key_index != NGX_CONF_UNSET) {
-    ngx_http_variable_value_t *v;
-    v = ngx_http_get_indexed_variable(r, var->key_index);
-    if (v == NULL || v->not_found) {
-      ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                    "keyval: variable specified was not provided");
-      return NGX_ERROR;
-    } else {
-      key->data = v->data;
-      key->len = v->len;
+  if (var->num_indexes != 0) // There is at least one variable to replace
+  {
+    ngx_http_variable_value_t *v[var->num_indexes]; // Array to store each variable
+    ngx_int_t current_index = 0; // Current variable index we're reading
+    ngx_str_t string_var = var->key_string; // Pointer to doesn't change the original one
+    ngx_uint_t size_string = 0; // Size of the final string with variables replaces and other characters
+
+    for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) // For each variable, verify the size and store it
+    {
+	    v[i] = ngx_http_get_indexed_variable(r, var->key_indexes[i]); // Get the variable
+
+	    if (v[i] == NULL || v[i]-> not_found) // Sanity check
+	    {
+		    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+				    "keyval: variable specified was not provided");
+		    return NGX_ERROR;
+	    }
+
+	    size_string += v[i]->len; // Increments final string size
     }
-  } else {
-    *key = var->key_string;
+
+    /* Variable that holds the final string and it's allocated with the exactly size it needs */
+
+    key->data = (u_char *) ngx_pnalloc(r->pool, size_string + (string_var.len - var->num_indexes) + 1);
+    key->len = 0;
+
+    u_char *last_space_available = key->data; // The same purpose as size_string var, but for the final string space
+
+    for ( ; *(string_var.data) != '\0' ; string_var.data++) // Walks by the intermediate string
+    {
+	    if (*(string_var.data) == '$') // A variable belongs here. Do the replace in the variable order we stored
+	    {
+		    last_space_available = ngx_cpystrn(last_space_available, v[current_index]->data, v[current_index]->len + 1); // Replace $ by the content of the variable
+		    key->len += v[current_index++]->len; // Increments string size
+	    }
+
+	    else // Common char, just copy
+	    {
+		    *last_space_available = *(string_var.data);
+		    last_space_available += sizeof(u_char); // Increments the pointer by the size of the data type
+		    key->len++;
+	    }
+    }
+
+    *last_space_available = '\0'; // Ends the string
   }
+
+  else // No vars, just copy
+	  *key = var->key_string;
 
   return NGX_OK;
 }
