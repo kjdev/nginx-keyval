@@ -450,12 +450,17 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                              ngx_keyval_get_variable_index get_variable_index)
 {
   ngx_str_t *value;
+  int final_pos = 0; // Current index of the intermediate string
+  int num_vars = 0; // Counts the number of vars (limited by 15)
 
   if (!config || !tag) {
     return "missing required parameter";
   }
 
   value = cf->args->elts;
+
+  const int SIZE_BUFFER_VARIABLE_NAME = value[1].len, SIZE_BUFFER_INTERMEDIATE_STRING = value[1].len; // Sizes for buffers
+  const int MAX_NUM_VAR = 15; // Max vars allowed
 
   if (value[1].len == 0) {
     return "is empty";
@@ -489,62 +494,64 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   u_char *string = value[1].data; // Different pointer to not affect the original
 
   (*var)->key_string.len = 0;
-  (*var)->key_string.data = ngx_pnalloc(cf->pool, 10000); // Allocates space for intermediate string
+  (*var)->key_string.data = ngx_pnalloc(cf->pool, SIZE_BUFFER_INTERMEDIATE_STRING); // Allocates space for intermediate string
 
   if ( (*var)->key_string.data == NULL)
 	  return "failed to allocate memory for intermediate string";
 
-  int final_pos = 0; // Current index of the intermediate string
-  int count = 0; // Counts the number of vars (limited by 15)
+  u_char *variable_name = ngx_alloc(SIZE_BUFFER_VARIABLE_NAME, cf->log); // Buffer for var name
 
-  while (*string != '\0')
-  {
-    if (*string == '$') // At least one var present
-    {
+  if (variable_name == NULL)
+    return "failed to allocate memory for variable name buffer";
+
+  while (*string != '\0') {
+    if (num_vars == MAX_NUM_VAR) { // Max of 15 vars reached
+
+      ngx_free(variable_name);
+      return "max variables reached";
+    }
+
+    if (*string == '$') { // At least one var present
       (*var)->key_string.data[final_pos++] = '$';
       (*var)->key_string.len++;
       string++;
 
-      int c = 0; // Index of the string that holds the name of the var we're reading
-
-      u_char aux[512] = {'\0'}; // Buffer for var name
+      int variable_name_str_index = 0; // Index of the string that holds the name of the var we're reading
 
       while ((*string != ' ' && *string != ':' && *string != '"' &&
           *string != '\'' && *string != '\\') && *string != '\0') // Take var chars until string end or see a delimiter
       {
-        aux[c] = *string;
-        c++;
+        variable_name[variable_name_str_index] = *string;
+        variable_name_str_index++;
         string++;
       }
 
-      ngx_str_t str = ngx_string(aux); // Converts normal string to ngx_str_t
-      str.len = ngx_strlen(aux); // By Nginx doc, str.len is the sizeof of the buffer, which is 512. We take the length by strlen
-      (*var)->key_indexes[count] = get_variable_index(cf, &str); // Saves the index of the variable from nginx memory
-      count++; // One more var read
+      variable_name[variable_name_str_index] = '\0';
+
+      ngx_str_t str = ngx_string(variable_name); // Converts normal string to ngx_str_t
+      str.len = ngx_strlen(variable_name); // By Nginx doc, str.len is the sizeof of the buffer or pointer. We take the length by strlen to get correct result
+      (*var)->key_indexes[num_vars] = get_variable_index(cf, &str); // Saves the index of the variable from nginx memory
+      num_vars++; // One more var read
     }
 
-    else // Normal char, read and proceed
-    {
+    else { // Normal char, read and proceed
       (*var)->key_string.len++;
       (*var)->key_string.data[final_pos++] = *string;
       string++;
     }
-
-    if (count == 15) // Max of 15 vars allowed
-      return "max variables reached";
   }
 
-  if (count == 0) // There's no var on the string, just copies the format string
-  {
+  if (num_vars == 0) { // There's no var on the string, just copies the format string
 	  (*var)->num_indexes = 0;
 	  (*var)->key_string = value[1];
   }
 
-  else
-  {
+  else {
 	  (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
-	  (*var)->num_indexes = count; // Saves the number of vars
+	  (*var)->num_indexes = num_vars; // Saves the number of vars
   }
+
+  ngx_free(variable_name);
 
   (*var)->variable = value[2];
 
