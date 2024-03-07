@@ -460,7 +460,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   (*var)->key_string.data = ngx_pnalloc(cf->pool, SIZE_BUFFER_INTERMEDIATE_STRING); // Allocates space for intermediate string
 
   if ( (*var)->key_string.data == NULL)
-	  return "failed to allocate memory for intermediate string";
+    return "failed to allocate memory for intermediate string";
 
   u_char *variable_name = ngx_alloc(SIZE_BUFFER_VARIABLE_NAME, cf->log); // Buffer for var name
 
@@ -482,8 +482,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
       int variable_name_str_index = 0; // Index of the string that holds the name of the var we're reading
 
       while ((*string != ' ' && *string != ':' && *string != '"' &&
-          *string != '\'' && *string != '\\') && *string != '\0') // Take var chars until string end or see a delimiter
-      {
+          *string != '\'' && *string != '\\') && *string != '\0') { // Take var chars until string end or see a delimiter
         variable_name[variable_name_str_index] = *string;
         variable_name_str_index++;
         string++;
@@ -505,13 +504,13 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   }
 
   if (num_vars == 0) { // There's no var on the string, just copies the format string
-	  (*var)->num_indexes = 0;
-	  (*var)->key_string = value[1];
+    (*var)->num_indexes = 0;
+    (*var)->key_string = value[1];
   }
 
   else {
-	  (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
-	  (*var)->num_indexes = num_vars; // Saves the number of vars
+    (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
+    (*var)->num_indexes = num_vars; // Saves the number of vars
   }
 
   ngx_free(variable_name);
