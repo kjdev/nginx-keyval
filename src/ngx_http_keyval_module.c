@@ -130,10 +130,17 @@ ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
   }
 
   if (var->num_indexes != 0) { // There is at least one variable to replace
-    ngx_http_variable_value_t *v[var->num_indexes]; // Array to store each variable
+    ngx_http_variable_value_t **v; // Array to store each variable
     ngx_int_t current_index = 0; // Current variable index we're reading
     ngx_str_t string_var = var->key_string; // Pointer to doesn't change the original one
     ngx_uint_t size_string = 0; // Size of the final string with variables replaces and other characters
+
+    v = ngx_palloc(r->connection->pool, sizeof(ngx_http_variable_value_t *) * var->num_indexes);
+
+    if (v == NULL) {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "keyval: failed to allocate memory for variable values array");
+      return NGX_ERROR;
+    }
 
     for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) { // For each variable, verify the size and store it
 	    v[i] = ngx_http_get_indexed_variable(r, var->key_indexes[i]); // Get the variable
@@ -149,7 +156,7 @@ ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
 
     /* Variable that holds the final string and it's allocated with the exactly size it needs */
 
-    key->data = (u_char *) ngx_pnalloc(r->pool, size_string + (string_var.len - var->num_indexes) + 1);
+    key->data = (u_char *) ngx_pnalloc(r->connection->pool, size_string + (string_var.len - var->num_indexes) + 1);
 
     if (key->data == NULL){
       ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,

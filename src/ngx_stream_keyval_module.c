@@ -130,11 +130,17 @@ ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
   /* The same idea as in the ngx_http_keyval_variable_get_key function */
 
   if (var->num_indexes != 0) {
-    ngx_stream_variable_value_t *v[var->num_indexes];
+    ngx_stream_variable_value_t **v;
     ngx_int_t current_index = 0;
     ngx_str_t string_var = var->key_string;
     ngx_uint_t size_string = 0;
-    ngx_log_t log;
+
+    v = ngx_palloc(s->connection->pool, sizeof(ngx_stream_variable_value_t *) * var->num_indexes);
+
+    if (v == NULL) {
+      ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "keyval: failed to allocate memory for variable values array");
+      return NGX_ERROR;
+    }
 
     for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) {
 	    v[i] = ngx_stream_get_indexed_variable(s, var->key_indexes[i]);
@@ -148,7 +154,7 @@ ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
 	    size_string += v[i]->len;
     }
 
-    key->data = (u_char *) ngx_alloc(size_string + (string_var.len - var->num_indexes) + 1, &log);
+    key->data = (u_char *) ngx_pnalloc(s->connection->pool, size_string + (string_var.len - var->num_indexes) + 1);
 
     if (key->data == NULL) {
       ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
