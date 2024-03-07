@@ -143,15 +143,15 @@ ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
     }
 
     for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) {
-	    v[i] = ngx_stream_get_indexed_variable(s, var->key_indexes[i]);
+      v[i] = ngx_stream_get_indexed_variable(s, var->key_indexes[i]);
 
-	    if (v[i] == NULL || v[i]-> not_found) {
-		    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-				    "keyval: variable specified was not provided");
-		    return NGX_ERROR;
-	    }
+      if (v[i] == NULL || v[i]-> not_found) {
+        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+            "keyval: variable specified was not provided");
+        return NGX_ERROR;
+      }
 
-	    size_string += v[i]->len;
+      size_string += v[i]->len;
     }
 
     key->data = (u_char *) ngx_pnalloc(s->connection->pool, size_string + (string_var.len - var->num_indexes) + 1);
@@ -167,23 +167,23 @@ ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
     u_char *last_space_available = key->data;
 
     for ( ; *(string_var.data) != '\0' ; string_var.data++) {
-	    if (*(string_var.data) == '$') {
-		    last_space_available = ngx_cpystrn(last_space_available, v[current_index]->data, v[current_index]->len + 1);
-		    key->len += v[current_index++]->len;
-	    }
+      if (*(string_var.data) == '$') {
+        last_space_available = ngx_cpystrn(last_space_available, v[current_index]->data, v[current_index]->len + 1);
+        key->len += v[current_index++]->len;
+      }
 
-	    else {
-		    *last_space_available = *(string_var.data);
-		    last_space_available += sizeof(u_char);
-		    key->len++;
-	    }
+      else {
+        *last_space_available = *(string_var.data);
+        last_space_available += sizeof(u_char);
+        key->len++;
+      }
     }
 
     *last_space_available = '\0';
   }
 
   else
-	  *key = var->key_string;
+    *key = var->key_string;
 
   return NGX_OK;
 }
