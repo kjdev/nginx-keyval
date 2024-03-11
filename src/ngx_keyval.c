@@ -580,6 +580,7 @@ ngx_keyval_delete_timeout_node_shm(ngx_event_t *node_status)
   if (arg->ctx->shpool != NULL && arg->node != NULL) {
     ngx_rbtree_delete(&arg->ctx->sh->rbtree, arg->node);
     ngx_slab_free(arg->ctx->shpool, arg->node);
+    ngx_slab_free(arg->ctx->shpool, arg);
   }
 }
 
