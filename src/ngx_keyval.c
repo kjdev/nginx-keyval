@@ -1,3 +1,4 @@
+#include <ngx_event.h>
 #include "ngx_keyval.h"
 
 static void
@@ -193,6 +194,7 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                          ngx_keyval_conf_t *config, void *tag)
 {
   ssize_t size;
+  ngx_uint_t i;
   ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
   ngx_keyval_shm_ctx_t *ctx;
@@ -266,6 +268,44 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
   shm_zone->init = ngx_keyval_init_zone;
   shm_zone->data = ctx;
+
+  ctx->ttl = 0;
+
+  for (i = 2; i < cf->args->nelts; i++) {
+    ngx_str_t s = ngx_null_string;
+
+    if (ngx_strncmp(value[i].data, "ttl=", 4) == 0 && value[i].len > 4) {
+      s.len = value[i].len - 4;
+      s.data = value[i].data + 4;
+    } else if (ngx_strncmp(value[i].data, "timeout=", 8) == 0
+               && value[i].len > 8) {
+      s.len = value[i].len - 8;
+      s.data = value[i].data + 8;
+    } else {
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "\"%V\" invalid parameter \"%V\"",
+                         &cmd->name, &value[i]);
+      return NGX_CONF_ERROR;
+    }
+
+    if (ctx->ttl != 0) {
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "\"%V\" duplicate parameter \"%V\"",
+                         &cmd->name, &value[i]);
+      return NGX_CONF_ERROR;
+    }
+
+    ctx->ttl = ngx_parse_time(&s, 1);
+    if (ctx->ttl == (time_t) NGX_ERROR) {
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "\"%V\" invalid parameter \"%V\"",
+                         &cmd->name, &value[2]);
+      return NGX_CONF_ERROR;
+    }
+  }
+
+  else
+    ctx->ttl = 0;
 
   return NGX_CONF_OK;
 }
@@ -550,6 +590,17 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
   return NGX_OK;
 }
 
+static void
+ngx_keyval_delete_timeout_node_shm(ngx_event_t *node_status)
+{
+  ngx_keyval_node_timeout_t *arg = (ngx_keyval_node_timeout_t *) node_status->data;
+
+  if (arg->ctx->shpool != NULL && arg->node != NULL) {
+    ngx_rbtree_delete(&arg->ctx->sh->rbtree, arg->node);
+    ngx_slab_free(arg->ctx->shpool, arg->node);
+  }
+}
+
 ngx_int_t
 ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
                         ngx_str_t *key, ngx_str_t *val, ngx_log_t *log)
@@ -596,6 +647,37 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
     ngx_rbtree_insert(&ctx->sh->rbtree, node);
 
     rc = NGX_OK;
+
+    if (ctx->ttl) {
+      ngx_event_t *timeout_node_event = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_event_t));
+
+      if (timeout_node_event == NULL) {
+        ngx_log_error(NGX_LOG_ERR, log, 0,
+                      "keyval: failed to allocate timeout event");
+        rc = NGX_ERROR;
+      }
+
+      else {
+        ngx_keyval_node_timeout_t *timeout_node = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_keyval_node_timeout_t));
+
+        if (timeout_node == NULL) {
+          ngx_log_error(NGX_LOG_ERR, log, 0,
+                        "keyval:failed to allocate timeout node");
+          rc = NGX_ERROR;
+          ngx_slab_free_locked(ctx->shpool, timeout_node_event);
+        }
+
+        else {
+          timeout_node->node = node;
+          timeout_node->ctx = ctx;
+
+          timeout_node_event->data = (void *) timeout_node;
+          timeout_node_event->handler = ngx_keyval_delete_timeout_node_shm;
+          timeout_node_event->log = shm->shm.log;
+          ngx_add_timer(timeout_node_event, ctx->ttl * 1000);
+        }
+      }
+    }
   }
 
   ngx_shmtx_unlock(&ctx->shpool->mutex);
