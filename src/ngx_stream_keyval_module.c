@@ -119,73 +119,10 @@ ngx_stream_keyval_conf_set_variable(ngx_conf_t *cf,
   return NGX_CONF_OK;
 }
 
-static ngx_int_t
-ngx_stream_keyval_variable_get_key(ngx_stream_session_t *s,
-                                   ngx_keyval_variable_t *var, ngx_str_t *key)
+static ngx_variable_value_t *
+ngx_stream_keyval_get_indexed_variable(void *data, ngx_uint_t index)
 {
-  if (!key || !var) {
-    return NGX_ERROR;
-  }
-
-  /* The same idea as in the ngx_http_keyval_variable_get_key function */
-
-  if (var->num_indexes != 0) {
-    ngx_stream_variable_value_t **v;
-    ngx_int_t current_index = 0;
-    ngx_str_t string_var = var->key_string;
-    ngx_uint_t size_string = 0;
-
-    v = ngx_palloc(s->connection->pool, sizeof(ngx_stream_variable_value_t *) * var->num_indexes);
-
-    if (v == NULL) {
-      ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "keyval: failed to allocate memory for variable values array");
-      return NGX_ERROR;
-    }
-
-    for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) {
-      v[i] = ngx_stream_get_indexed_variable(s, var->key_indexes[i]);
-
-      if (v[i] == NULL || v[i]-> not_found) {
-        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-            "keyval: variable specified was not provided");
-        return NGX_ERROR;
-      }
-
-      size_string += v[i]->len;
-    }
-
-    key->data = (u_char *) ngx_pnalloc(s->connection->pool, size_string + (string_var.len - var->num_indexes) + 1);
-
-    if (key->data == NULL) {
-      ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
-          "keyval: error allocating memory for key string");
-      return NGX_ERROR;
-    }
-
-    key->len = 0;
-
-    u_char *last_space_available = key->data;
-
-    for ( ; *(string_var.data) != '\0' ; string_var.data++) {
-      if (*(string_var.data) == '$') {
-        last_space_available = ngx_cpystrn(last_space_available, v[current_index]->data, v[current_index]->len + 1);
-        key->len += v[current_index++]->len;
-      }
-
-      else {
-        *last_space_available = *(string_var.data);
-        last_space_available += sizeof(u_char);
-        key->len++;
-      }
-    }
-
-    *last_space_available = '\0';
-  }
-
-  else
-    *key = var->key_string;
-
-  return NGX_OK;
+  return ngx_stream_get_indexed_variable((ngx_stream_session_t *) data, index);
 }
 
 static ngx_int_t
@@ -210,7 +147,9 @@ ngx_stream_keyval_variable_init(ngx_stream_session_t *s, uintptr_t data,
 
   var = (ngx_keyval_variable_t *) data;
 
-  if (ngx_stream_keyval_variable_get_key(s, var, key) != NGX_OK) {
+  if (ngx_keyval_variable_get_key(s->connection, var, key,
+                                  ngx_stream_keyval_get_indexed_variable,
+                                  (void *) s) != NGX_OK) {
     ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
                   "keyval: rejected due to not found variable key");
     return NGX_ERROR;
