@@ -304,9 +304,6 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     }
   }
 
-  else
-    ctx->ttl = 0;
-
   return NGX_CONF_OK;
 }
 
@@ -593,7 +590,8 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
 static void
 ngx_keyval_delete_timeout_node_shm(ngx_event_t *node_status)
 {
-  ngx_keyval_node_timeout_t *arg = (ngx_keyval_node_timeout_t *) node_status->data;
+  ngx_keyval_node_timeout_t *arg
+    = (ngx_keyval_node_timeout_t *) node_status->data;
 
   if (arg->ctx->shpool != NULL && arg->node != NULL) {
     ngx_rbtree_delete(&arg->ctx->sh->rbtree, arg->node);
@@ -650,25 +648,24 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
     rc = NGX_OK;
 
     if (ctx->ttl) {
-      ngx_event_t *timeout_node_event = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_event_t));
+      ngx_event_t *timeout_node_event
+        = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_event_t));
 
       if (timeout_node_event == NULL) {
         ngx_log_error(NGX_LOG_ERR, log, 0,
                       "keyval: failed to allocate timeout event");
         rc = NGX_ERROR;
-      }
-
-      else {
-        ngx_keyval_node_timeout_t *timeout_node = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_keyval_node_timeout_t));
+      } else {
+        ngx_keyval_node_timeout_t *timeout_node
+          = ngx_slab_alloc_locked(ctx->shpool,
+                                  sizeof(ngx_keyval_node_timeout_t));
 
         if (timeout_node == NULL) {
           ngx_log_error(NGX_LOG_ERR, log, 0,
-                        "keyval:failed to allocate timeout node");
+                        "keyval: failed to allocate timeout node");
           rc = NGX_ERROR;
           ngx_slab_free_locked(ctx->shpool, timeout_node_event);
-        }
-
-        else {
+        } else {
           timeout_node->node = node;
           timeout_node->ctx = ctx;
 
