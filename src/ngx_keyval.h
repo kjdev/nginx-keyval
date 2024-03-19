@@ -13,6 +13,7 @@ typedef enum {
 } ngx_keyval_zone_type_t;
 
 typedef struct {
+  ngx_array_t *indexes;
   ngx_array_t *variables;
   ngx_array_t *zones;
 } ngx_keyval_conf_t;
@@ -56,8 +57,7 @@ typedef struct {
 } ngx_keyval_zone_t;
 
 typedef struct {
-  ngx_int_t key_indexes[15];
-  ngx_int_t num_indexes;
+  ngx_array_t *indexes;
   ngx_str_t key_string;
   ngx_str_t variable;
   ngx_keyval_zone_t *zone;

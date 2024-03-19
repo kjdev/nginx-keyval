@@ -460,7 +460,6 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   value = cf->args->elts;
 
   const int SIZE_BUFFER_VARIABLE_NAME = value[1].len, SIZE_BUFFER_INTERMEDIATE_STRING = value[1].len; // Sizes for buffers
-  const int MAX_NUM_VAR = 15; // Max vars allowed
 
   if (value[1].len == 0) {
     return "is empty";
@@ -491,6 +490,21 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate iteam";
   }
 
+  if (config->indexes == NULL) {
+    config->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_array_t));
+    if (config->indexes == NULL) {
+      return "failed to allocate";
+    }
+  }
+  (*var)->indexes = ngx_array_push(config->indexes);
+  if ((*var)->indexes == NULL) {
+    return "failed to allocate iteam";
+  }
+  (*var)->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_int_t));
+  if ((*var)->indexes == NULL) {
+    return "failed to allocate";
+  }
+
   u_char *string = value[1].data; // Different pointer to not affect the original
 
   (*var)->key_string.len = 0;
@@ -505,12 +519,6 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate memory for variable name buffer";
 
   while (*string != '\0') {
-    if (num_vars == MAX_NUM_VAR) { // Max of 15 vars reached
-
-      ngx_free(variable_name);
-      return "max variables reached";
-    }
-
     if (*string == '$') { // At least one var present
       (*var)->key_string.data[final_pos++] = '$';
       (*var)->key_string.len++;
@@ -529,7 +537,13 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
       ngx_str_t str = ngx_string(variable_name); // Converts normal string to ngx_str_t
       str.len = ngx_strlen(variable_name); // By Nginx doc, str.len is the sizeof of the buffer or pointer. We take the length by strlen to get correct result
-      (*var)->key_indexes[num_vars] = get_variable_index(cf, &str); // Saves the index of the variable from nginx memory
+
+      ngx_int_t *index = ngx_array_push((*var)->indexes);
+      if (index == NULL) {
+        return "failed to allocate item";
+      }
+      *index = get_variable_index(cf, &str);
+
       num_vars++; // One more var read
     }
 
@@ -541,13 +555,11 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   }
 
   if (num_vars == 0) { // There's no var on the string, just copies the format string
-    (*var)->num_indexes = 0;
     (*var)->key_string = value[1];
   }
 
   else {
     (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
-    (*var)->num_indexes = num_vars; // Saves the number of vars
   }
 
   ngx_free(variable_name);
@@ -581,7 +593,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
     return NGX_ERROR;
   }
 
-  if (var->num_indexes != 0) {
+  if (var->indexes->nelts != 0) {
     ngx_variable_value_t **v;
     ngx_int_t current_index = 0;
     ngx_str_t string_var = var->key_string;
@@ -589,7 +601,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
     u_char *last_space_available;
 
     v = ngx_palloc(connection->pool,
-                   sizeof(ngx_variable_value_t *) * var->num_indexes);
+                   sizeof(ngx_variable_value_t *) * var->indexes->nelts);
 
     if (v == NULL) {
       ngx_log_error(NGX_LOG_ERR, connection->log, 0,
@@ -598,8 +610,10 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
       return NGX_ERROR;
     }
 
-    for (ngx_int_t i = 0 ; i < var->num_indexes ; i++) {
-      v[i] = get_index_variable(data, var->key_indexes[i]);
+    ngx_int_t *indexes = var->indexes->elts;
+
+    for (ngx_uint_t i = 0 ; i < var->indexes->nelts ; i++) {
+      v[i] = get_index_variable(data, indexes[i]);
 
       if (v[i] == NULL || v[i]-> not_found) {
         ngx_log_error(NGX_LOG_INFO, connection->log, 0,
@@ -612,7 +626,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
 
     key->data = (u_char *) ngx_pnalloc(connection->pool,
                                        size_string
-                                       + (string_var.len - var->num_indexes)
+                                       + (string_var.len - var->indexes->nelts)
                                        + 1);
 
     if (key->data == NULL) {
