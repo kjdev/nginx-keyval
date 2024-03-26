@@ -194,6 +194,7 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                          ngx_keyval_conf_t *config, void *tag)
 {
   ssize_t size;
+  ngx_uint_t i;
   ngx_shm_zone_t *shm_zone;
   ngx_str_t name, *value;
   ngx_keyval_shm_ctx_t *ctx;
@@ -268,24 +269,39 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   shm_zone->init = ngx_keyval_init_zone;
   shm_zone->data = ctx;
 
-  if (cf->args->nelts >= 2) {
-    if (ngx_strncmp(value[2].data, "ttl=", 4) == 0 && value[2].len > 4) {
-      ngx_str_t s;
+  ctx->ttl = 0;
 
-      s.len = value[2].len - 4;
-      s.data = value[2].data + 4;
+  for (i = 2; i < cf->args->nelts; i++) {
+    ngx_str_t s = ngx_null_string;
 
-      ctx->ttl = ngx_parse_time(&s, 1);
-      if (ctx->ttl == (time_t) NGX_ERROR) {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "\"%V\" invalid ttl \"%V\"",
-                           &cmd->name, &value[2]);
-        ctx->ttl = 0;
-        return NGX_CONF_ERROR;
-      }
+    if (ngx_strncmp(value[i].data, "ttl=", 4) == 0 && value[i].len > 4) {
+      s.len = value[i].len - 4;
+      s.data = value[i].data + 4;
+    } else if (ngx_strncmp(value[i].data, "timeout=", 8) == 0
+               && value[i].len > 8) {
+      s.len = value[i].len - 8;
+      s.data = value[i].data + 8;
+    } else {
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "\"%V\" invalid parameter \"%V\"",
+                         &cmd->name, &value[i]);
+      return NGX_CONF_ERROR;
     }
-  } else {
-    ctx->ttl = 0;
+
+    if (ctx->ttl != 0) {
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                         "\"%V\" duplicate parameter \"%V\"",
+                         &cmd->name, &value[i]);
+      return NGX_CONF_ERROR;
+    }
+
+    ctx->ttl = ngx_parse_time(&s, 1);
+    if (ctx->ttl == (time_t) NGX_ERROR) {
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "\"%V\" invalid parameter \"%V\"",
+                           &cmd->name, &value[2]);
+        return NGX_CONF_ERROR;
+    }
   }
 
   return NGX_CONF_OK;
