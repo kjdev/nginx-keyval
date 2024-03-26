@@ -233,7 +233,7 @@ location = /set2 {
   "/get(key): 1:test1 2:test2\n"
 ]
 
-=== timeout (1s)
+=== ttl (1s)
 --init
 system "sleep 1"
 --- http_config
@@ -266,7 +266,7 @@ location = /set {
   "/get(key): test1s\n"
 ]
 
-=== timeout (5s)
+=== ttl (5s)
 --- wait: 5
 --- http_config
 keyval_zone zone=timeout:5m ttl=5s;
@@ -298,7 +298,7 @@ location = /set {
   "/get(key): \n"
 ]
 
-=== timeout (6s but with request within 5s)
+=== ttl (6s but with request within 5s)
 --- wait: 5
 --- http_config
 keyval_zone zone=timeout:5m ttl=6s;
@@ -330,8 +330,7 @@ location = /set {
   "/get(key): test5s\n"
 ]
 
-
-=== timeout (5s but with request within 5.1s)
+=== ttl (5s but with request within 5.1s)
 --- wait: 5.1
 --- http_config
 keyval_zone zone=timeout:5m ttl=5s;
@@ -363,7 +362,7 @@ location = /set {
   "/get(key): \n"
 ]
 
-=== timeout (1m)
+=== ttl (1m)
 --- http_config
 keyval_zone zone=timeout:5m ttl=1m;
 keyval $cookie_data_key $keyval_data zone=timeout;
@@ -394,9 +393,200 @@ location = /set {
   "/get(key): test1m\n"
 ]
 
-=== timeout (1h)
+=== ttl (1h)
 --- http_config
 keyval_zone zone=timeout:5m ttl=1h;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test1h";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test1h\n",
+  "/get(key): test1h\n"
+]
+
+=== timeout (1s)
+--init
+system "sleep 1"
+--- http_config
+keyval_zone zone=timeout:5m timeout=1s;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test1s";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test1s\n",
+  "/get(key): test1s\n"
+]
+
+=== timeout (5s)
+--- wait: 5
+--- http_config
+keyval_zone zone=timeout:5m timeout=5s;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test5s";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test5s\n",
+  "/get(key): \n"
+]
+
+=== timeout (6s but with request within 5s)
+--- wait: 5
+--- http_config
+keyval_zone zone=timeout:5m timeout=6s;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test5s";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test5s\n",
+  "/get(key): test5s\n"
+]
+
+=== timeout (5s but with request within 5.1s)
+--- wait: 5.1
+--- http_config
+keyval_zone zone=timeout:5m timeout=5s;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test5s";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test5s\n",
+  "/get(key): \n"
+]
+
+=== timeout (1m)
+--- http_config
+keyval_zone zone=timeout:5m timeout=1m;
+keyval $cookie_data_key $keyval_data zone=timeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "test1m";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): test1m\n",
+  "/get(key): test1m\n"
+]
+
+=== timeout (1h)
+--- http_config
+keyval_zone zone=timeout:5m timeout=1h;
 keyval $cookie_data_key $keyval_data zone=timeout;
 --- config
 location = /get {
@@ -448,6 +638,20 @@ keyval $cookie_data_key $keyval_data zone=test1;
 === conf invalid ttl
 --- http_config
 keyval_zone zone=test:1M ttl=e5s;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf invalid timeout
+--- http_config
+keyval_zone zone=test:1M timeout=e5s;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf invalid duplicate ttl and timeout
+--- http_config
+keyval_zone zone=test:1M timeout=5s ttl=5s;
 keyval $cookie_data_key $keyval_data zone=test;
 --- config
 --- must_die
