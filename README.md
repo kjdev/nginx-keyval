@@ -78,7 +78,7 @@ The database is stored in shared memory or Redis as specified
 by the zone parameter.
 
 ```
-Syntax: keyval_zone zone=name:size [ttl=time];
+Syntax: keyval_zone zone=name:size [timeout=time] [ttl=time];
 Default: -
 Context: http
 ```
@@ -86,7 +86,7 @@ Context: http
 Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
 
-The optional `ttl` parameter sets the time to live
+The optional `timeout` or `ttl` parameter sets the time to live
 which key-value pairs are removed (default value is `0` seconds).
 
 ```
@@ -148,7 +148,7 @@ The database is stored in shared memory or Redis as specified
 by the zone parameter.
 
 ```
-Syntax: keyval_zone zone=name:size [ttl=time];
+Syntax: keyval_zone zone=name:size [timeout=time] [ttl=time];
 Default: -
 Context: http
 ```
@@ -156,7 +156,7 @@ Context: http
 Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
 
-The optional `ttl` parameter sets the time to live which key-value pairs are removed (default value is 0 seconds).
+The optional `timeout` or `ttl` parameter sets the time to live which key-value pairs are removed (default value is 0 seconds).
 
 ```
 Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
