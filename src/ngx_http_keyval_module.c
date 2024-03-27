@@ -121,30 +121,10 @@ ngx_http_keyval_conf_set_variable(ngx_conf_t *cf,
   return NGX_CONF_OK;
 }
 
-static ngx_int_t
-ngx_http_keyval_variable_get_key(ngx_http_request_t *r,
-                                 ngx_keyval_variable_t *var, ngx_str_t *key)
+static ngx_variable_value_t *
+ngx_http_keyval_get_indexed_variable(void *data, ngx_uint_t index)
 {
-  if (!key || !var) {
-    return NGX_ERROR;
-  }
-
-  if (var->key_index != NGX_CONF_UNSET) {
-    ngx_http_variable_value_t *v;
-    v = ngx_http_get_indexed_variable(r, var->key_index);
-    if (v == NULL || v->not_found) {
-      ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                    "keyval: variable specified was not provided");
-      return NGX_ERROR;
-    } else {
-      key->data = v->data;
-      key->len = v->len;
-    }
-  } else {
-    *key = var->key_string;
-  }
-
-  return NGX_OK;
+  return ngx_http_get_indexed_variable((ngx_http_request_t *) data, index);
 }
 
 static ngx_int_t
@@ -169,7 +149,9 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
 
   var = (ngx_keyval_variable_t *) data;
 
-  if (ngx_http_keyval_variable_get_key(r, var, key) != NGX_OK) {
+  if (ngx_keyval_variable_get_key(r->connection, var, key,
+                                  ngx_http_keyval_get_indexed_variable,
+                                  (void *) r) != NGX_OK) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "keyval: rejected due to not found variable key");
     return NGX_ERROR;
