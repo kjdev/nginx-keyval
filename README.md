@@ -3,7 +3,7 @@ nginx-keyval
 
 This nginx module creates variables with values taken from key-value pairs.
 
-> This modules is heavenly inspired by the nginx original
+> This module is heavily inspired by the nginx original
 > [http_keyval_module](https://nginx.org/en/docs/http/ngx_http_keyval_module.html).
 
 Dependency
