@@ -18,7 +18,7 @@ static ngx_command_t ngx_stream_keyval_commands[] = {
     0,
     NULL },
   { ngx_string("keyval_zone"),
-    NGX_STREAM_MAIN_CONF|NGX_CONF_TAKE1,
+    NGX_STREAM_MAIN_CONF|NGX_CONF_1MORE,
     ngx_stream_keyval_conf_set_zone,
     0,
     0,

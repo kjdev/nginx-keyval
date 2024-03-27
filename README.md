@@ -78,13 +78,16 @@ The database is stored in shared memory or Redis as specified
 by the zone parameter.
 
 ```
-Syntax: keyval_zone zone=name:size;
+Syntax: keyval_zone zone=name:size [ttl=time];
 Default: -
 Context: http
 ```
 
 Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
+
+The optional `ttl` parameter sets the time to live
+which key-value pairs are removed (default value is `0` seconds).
 
 ```
 Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
@@ -145,13 +148,15 @@ The database is stored in shared memory or Redis as specified
 by the zone parameter.
 
 ```
-Syntax: keyval_zone zone=name:size;
+Syntax: keyval_zone zone=name:size [ttl=time];
 Default: -
 Context: http
 ```
 
 Sets the `name` and `size` of the shared memory zone that
 keeps the key-value database.
+
+The optional `ttl` parameter sets the time to live which key-value pairs are removed (default value is 0 seconds).
 
 ```
 Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
@@ -187,4 +192,4 @@ Example
 TODO
 ----
 
-- [ ] Support for `[state=file]`, `[timeout=time]` in `keyval_zone` directive
+- [ ] Support for `[state=file]` in `keyval_zone` directive
