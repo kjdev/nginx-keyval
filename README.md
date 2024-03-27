@@ -79,11 +79,9 @@ by the zone parameter.
 
 In `key`, you can use a mix of variables and text or just variables.
 
-For example:
-  - `$remote_addr:$http_user_agent`
-  - `'$remote_addr    $http_user_agent   $host "a random text"'`
-
-<br>
+> For example:
+> - `$remote_addr:$http_user_agent`
+> - `'$remote_addr    $http_user_agent   $host "a random text"'`
 
 ```
 Syntax: keyval_zone zone=name:size;
