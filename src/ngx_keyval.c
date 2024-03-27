@@ -481,7 +481,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate memory for intermediate string";
   }
 
-  variable_name = ngx_alloc(size_buffer_variable_name, cf->log);
+  variable_name = ngx_pnalloc(cf->pool, size_buffer_variable_name);
   if (variable_name == NULL) {
     return "failed to allocate memory for variable name buffer";
   }
@@ -530,8 +530,6 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   } else {
     (*var)->key_string.data[final_pos] = '\0';
   }
-
-  ngx_free(variable_name);
 
   (*var)->variable = value[2];
 
