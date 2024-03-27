@@ -532,8 +532,11 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
       (*var)->key_string.len++;
       string++;
 
-      while ((*string != ' ' && *string != ':' && *string != '"' &&
-              *string != '\'' && *string != '\\') && *string != '\0') {
+      while (*string != '\0'
+             && ((*string >= 'A' && *string <= 'Z')
+                 || (*string >= 'a' && *string <= 'z')
+                 || (*string >= '0' && *string <= '9')
+                 || *string == '_')) {
         variable_name[variable_name_str_index] = *string;
         variable_name_str_index++;
         string++;
