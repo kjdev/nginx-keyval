@@ -413,12 +413,16 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                              ngx_keyval_get_variable_index get_variable_index)
 {
   ngx_str_t *value;
+  int final_pos = 0; // Current index of the intermediate string
+  int num_vars = 0; // Counts the number of vars (limited by 15)
 
   if (!config || !tag) {
     return "missing required parameter";
   }
 
   value = cf->args->elts;
+
+  const int SIZE_BUFFER_VARIABLE_NAME = value[1].len, SIZE_BUFFER_INTERMEDIATE_STRING = value[1].len; // Sizes for buffers
 
   if (value[1].len == 0) {
     return "is empty";
@@ -449,15 +453,79 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate iteam";
   }
 
-  if (value[1].data[0] == '$') {
-    value[1].data++;
-    value[1].len--;
-    (*var)->key_index = get_variable_index(cf, &value[1]);
-    ngx_str_null(&((*var)->key_string));
-  } else {
-    (*var)->key_index = NGX_CONF_UNSET;
+  if (config->indexes == NULL) {
+    config->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_array_t));
+    if (config->indexes == NULL) {
+      return "failed to allocate";
+    }
+  }
+  (*var)->indexes = ngx_array_push(config->indexes);
+  if ((*var)->indexes == NULL) {
+    return "failed to allocate iteam";
+  }
+  (*var)->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_int_t));
+  if ((*var)->indexes == NULL) {
+    return "failed to allocate";
+  }
+
+  u_char *string = value[1].data; // Different pointer to not affect the original
+
+  (*var)->key_string.len = 0;
+  (*var)->key_string.data = ngx_pnalloc(cf->pool, SIZE_BUFFER_INTERMEDIATE_STRING); // Allocates space for intermediate string
+
+  if ( (*var)->key_string.data == NULL)
+    return "failed to allocate memory for intermediate string";
+
+  u_char *variable_name = ngx_alloc(SIZE_BUFFER_VARIABLE_NAME, cf->log); // Buffer for var name
+
+  if (variable_name == NULL)
+    return "failed to allocate memory for variable name buffer";
+
+  while (*string != '\0') {
+    if (*string == '$') { // At least one var present
+      (*var)->key_string.data[final_pos++] = '$';
+      (*var)->key_string.len++;
+      string++;
+
+      int variable_name_str_index = 0; // Index of the string that holds the name of the var we're reading
+
+      while ((*string != ' ' && *string != ':' && *string != '"' &&
+          *string != '\'' && *string != '\\') && *string != '\0') { // Take var chars until string end or see a delimiter
+        variable_name[variable_name_str_index] = *string;
+        variable_name_str_index++;
+        string++;
+      }
+
+      variable_name[variable_name_str_index] = '\0';
+
+      ngx_str_t str = ngx_string(variable_name); // Converts normal string to ngx_str_t
+      str.len = ngx_strlen(variable_name); // By Nginx doc, str.len is the sizeof of the buffer or pointer. We take the length by strlen to get correct result
+
+      ngx_int_t *index = ngx_array_push((*var)->indexes);
+      if (index == NULL) {
+        return "failed to allocate item";
+      }
+      *index = get_variable_index(cf, &str);
+
+      num_vars++; // One more var read
+    }
+
+    else { // Normal char, read and proceed
+      (*var)->key_string.len++;
+      (*var)->key_string.data[final_pos++] = *string;
+      string++;
+    }
+  }
+
+  if (num_vars == 0) { // There's no var on the string, just copies the format string
     (*var)->key_string = value[1];
   }
+
+  else {
+    (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
+  }
+
+  ngx_free(variable_name);
 
   (*var)->variable = value[2];
 
@@ -476,6 +544,83 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   }
 
   return NGX_CONF_OK;
+}
+
+ngx_int_t
+ngx_keyval_variable_get_key(ngx_connection_t *connection,
+                            ngx_keyval_variable_t *var, ngx_str_t *key,
+                            ngx_keyval_get_index_variable get_index_variable,
+                            void *data)
+{
+  if (!key || !var || !connection || !data) {
+    return NGX_ERROR;
+  }
+
+  if (var->indexes->nelts != 0) {
+    ngx_variable_value_t **v;
+    ngx_int_t current_index = 0;
+    ngx_str_t string_var = var->key_string;
+    ngx_uint_t size_string = 0;
+    u_char *last_space_available;
+
+    v = ngx_palloc(connection->pool,
+                   sizeof(ngx_variable_value_t *) * var->indexes->nelts);
+
+    if (v == NULL) {
+      ngx_log_error(NGX_LOG_ERR, connection->log, 0,
+                    "keyval: failed to allocate memory "
+                    "for variable values array");
+      return NGX_ERROR;
+    }
+
+    ngx_int_t *indexes = var->indexes->elts;
+
+    for (ngx_uint_t i = 0 ; i < var->indexes->nelts ; i++) {
+      v[i] = get_index_variable(data, indexes[i]);
+
+      if (v[i] == NULL || v[i]-> not_found) {
+        ngx_log_error(NGX_LOG_INFO, connection->log, 0,
+                      "keyval: variable specified was not provided");
+        return NGX_ERROR;
+      }
+
+      size_string += v[i]->len;
+    }
+
+    key->data = (u_char *) ngx_pnalloc(connection->pool,
+                                       size_string
+                                       + (string_var.len - var->indexes->nelts)
+                                       + 1);
+
+    if (key->data == NULL) {
+      ngx_log_error(NGX_LOG_ERR, connection->log, 0,
+                    "keyval: error allocating memory for key string");
+      return NGX_ERROR;
+    }
+
+    key->len = 0;
+
+    last_space_available = key->data;
+
+    for ( ; *(string_var.data) != '\0' ; string_var.data++) {
+      if (*(string_var.data) == '$') {
+        last_space_available = ngx_cpystrn(last_space_available,
+                                           v[current_index]->data,
+                                           v[current_index]->len + 1);
+        key->len += v[current_index++]->len;
+      } else {
+        *last_space_available = *(string_var.data);
+        last_space_available += sizeof(u_char);
+        key->len++;
+      }
+    }
+
+    *last_space_available = '\0';
+  } else {
+    *key = var->key_string;
+  }
+
+  return NGX_OK;
 }
 
 void *
