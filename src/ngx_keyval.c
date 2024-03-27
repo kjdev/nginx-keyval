@@ -454,6 +454,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
   int num_vars = 0;
   size_t size_buffer_variable_name = 0, size_buffer_intermediate_string = 0;
   u_char *string = NULL, *variable_name = NULL;
+  ngx_array_t *indexes = NULL;
 
   if (!config || !tag) {
     return "missing required parameter";
@@ -499,9 +500,9 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
       return "failed to allocate";
     }
   }
-  (*var)->indexes = ngx_array_push(config->indexes);
-  if ((*var)->indexes == NULL) {
-    return "failed to allocate iteam";
+  indexes = ngx_array_push(config->indexes);
+  if (indexes == NULL) {
+    return "failed to allocate item";
   }
   (*var)->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_int_t));
   if ((*var)->indexes == NULL) {
