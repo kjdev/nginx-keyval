@@ -32,7 +32,13 @@ typedef struct {
 typedef struct {
   ngx_keyval_sh_t *sh;
   ngx_slab_pool_t *shpool;
+  time_t ttl;
 } ngx_keyval_shm_ctx_t;
+
+typedef struct {
+  ngx_rbtree_node_t *node;
+  ngx_keyval_shm_ctx_t *ctx;
+} ngx_keyval_node_timeout_t;
 
 typedef struct {
   u_char *hostname;
