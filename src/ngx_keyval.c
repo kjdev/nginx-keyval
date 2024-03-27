@@ -450,8 +450,10 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                              ngx_keyval_get_variable_index get_variable_index)
 {
   ngx_str_t *value;
-  int final_pos = 0; // Current index of the intermediate string
-  int num_vars = 0; // Counts the number of vars (limited by 15)
+  int final_pos = 0;
+  int num_vars = 0;
+  size_t size_buffer_variable_name = 0, size_buffer_intermediate_string = 0;
+  u_char *string = NULL, *variable_name = NULL;
 
   if (!config || !tag) {
     return "missing required parameter";
@@ -459,7 +461,8 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
   value = cf->args->elts;
 
-  const int SIZE_BUFFER_VARIABLE_NAME = value[1].len, SIZE_BUFFER_INTERMEDIATE_STRING = value[1].len; // Sizes for buffers
+  size_buffer_variable_name = value[1].len;
+  size_buffer_intermediate_string = value[1].len;
 
   if (value[1].len == 0) {
     return "is empty";
@@ -505,29 +508,32 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     return "failed to allocate";
   }
 
-  u_char *string = value[1].data; // Different pointer to not affect the original
+  string = value[1].data;
 
   (*var)->key_string.len = 0;
-  (*var)->key_string.data = ngx_pnalloc(cf->pool, SIZE_BUFFER_INTERMEDIATE_STRING); // Allocates space for intermediate string
-
-  if ( (*var)->key_string.data == NULL)
+  (*var)->key_string.data = ngx_pnalloc(cf->pool,
+                                        size_buffer_intermediate_string);
+  if ((*var)->key_string.data == NULL) {
     return "failed to allocate memory for intermediate string";
+  }
 
-  u_char *variable_name = ngx_alloc(SIZE_BUFFER_VARIABLE_NAME, cf->log); // Buffer for var name
-
-  if (variable_name == NULL)
+  variable_name = ngx_alloc(size_buffer_variable_name, cf->log);
+  if (variable_name == NULL) {
     return "failed to allocate memory for variable name buffer";
+  }
 
   while (*string != '\0') {
-    if (*string == '$') { // At least one var present
+    if (*string == '$') {
+      int variable_name_str_index = 0;
+      ngx_int_t *index;
+      ngx_str_t str;
+
       (*var)->key_string.data[final_pos++] = '$';
       (*var)->key_string.len++;
       string++;
 
-      int variable_name_str_index = 0; // Index of the string that holds the name of the var we're reading
-
       while ((*string != ' ' && *string != ':' && *string != '"' &&
-          *string != '\'' && *string != '\\') && *string != '\0') { // Take var chars until string end or see a delimiter
+              *string != '\'' && *string != '\\') && *string != '\0') {
         variable_name[variable_name_str_index] = *string;
         variable_name_str_index++;
         string++;
@@ -535,31 +541,27 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
       variable_name[variable_name_str_index] = '\0';
 
-      ngx_str_t str = ngx_string(variable_name); // Converts normal string to ngx_str_t
-      str.len = ngx_strlen(variable_name); // By Nginx doc, str.len is the sizeof of the buffer or pointer. We take the length by strlen to get correct result
+      str.data = variable_name;
+      str.len = ngx_strlen(variable_name);
 
-      ngx_int_t *index = ngx_array_push((*var)->indexes);
+      index = ngx_array_push((*var)->indexes);
       if (index == NULL) {
         return "failed to allocate item";
       }
       *index = get_variable_index(cf, &str);
 
-      num_vars++; // One more var read
-    }
-
-    else { // Normal char, read and proceed
+      num_vars++;
+    } else {
       (*var)->key_string.len++;
       (*var)->key_string.data[final_pos++] = *string;
       string++;
     }
   }
 
-  if (num_vars == 0) { // There's no var on the string, just copies the format string
+  if (num_vars == 0) {
     (*var)->key_string = value[1];
-  }
-
-  else {
-    (*var)->key_string.data[final_pos] = '\0'; // Marks the end of the string
+  } else {
+    (*var)->key_string.data[final_pos] = '\0';
   }
 
   ngx_free(variable_name);
