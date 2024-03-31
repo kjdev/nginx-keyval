@@ -13,6 +13,7 @@ typedef enum {
 } ngx_keyval_zone_type_t;
 
 typedef struct {
+  ngx_array_t *indexes;
   ngx_array_t *variables;
   ngx_array_t *zones;
 } ngx_keyval_conf_t;
@@ -56,7 +57,7 @@ typedef struct {
 } ngx_keyval_zone_t;
 
 typedef struct {
-  ngx_int_t key_index;
+  ngx_array_t *indexes;
   ngx_str_t key_string;
   ngx_str_t variable;
   ngx_keyval_zone_t *zone;
@@ -69,12 +70,14 @@ typedef struct {
 #endif
 
 typedef ngx_int_t (*ngx_keyval_get_variable_index)(ngx_conf_t *cf, ngx_str_t *name);
+typedef ngx_variable_value_t *(*ngx_keyval_get_index_variable)(void *data, ngx_uint_t index);
 
 char *ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 char *ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #endif
 char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag, ngx_keyval_variable_t **var, ngx_keyval_get_variable_index get_variable_index);
+ngx_int_t ngx_keyval_variable_get_key(ngx_connection_t *connection, ngx_keyval_variable_t *var, ngx_str_t *key, ngx_keyval_get_index_variable get_index_variable, void *data);
 
 void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 
