@@ -42,7 +42,7 @@ $ : "app.conf: Create nginx configuration"
 $ docker run -p 80:80 -v $PWD/app.conf:/etc/nginx/http.d/default.conf nginx-keyval
 ```
 
-> Github package: ghcr.io/kjdev/nginx-keyval
+> Github package: ghcr.io/kjdev/nginx-keyval/nginx
 
 Configuration: `ngx_http_keyval_module`
 ---------------------------------------
