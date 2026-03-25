@@ -72,19 +72,31 @@ typedef struct {
 typedef ngx_int_t (*ngx_keyval_get_variable_index)(ngx_conf_t *cf, ngx_str_t *name);
 typedef ngx_variable_value_t *(*ngx_keyval_get_index_variable)(void *data, ngx_uint_t index);
 
+/* ngx_keyval_zone.c */
+ngx_keyval_zone_t *ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd, ngx_keyval_conf_t *conf, ngx_str_t *name);
+ngx_keyval_zone_t *ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd, ngx_keyval_conf_t *conf, ngx_str_t *name, ngx_keyval_zone_type_t type);
 char *ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 char *ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag);
 #endif
-char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag, ngx_keyval_variable_t **var, ngx_keyval_get_variable_index get_variable_index);
-ngx_int_t ngx_keyval_variable_get_key(ngx_connection_t *connection, ngx_keyval_variable_t *var, ngx_str_t *key, ngx_keyval_get_index_variable get_index_variable, void *data);
 
+/* ngx_keyval_conf.c */
+char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf, ngx_keyval_conf_t *config, void *tag, ngx_keyval_variable_t **var, ngx_keyval_get_variable_index get_variable_index);
 void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 
+/* ngx_keyval_variable.c */
+ngx_int_t ngx_keyval_variable_get_key(ngx_connection_t *connection, ngx_keyval_variable_t *var, ngx_str_t *key, ngx_keyval_get_index_variable get_index_variable, void *data);
+
+/* ngx_keyval_store_shm.c */
+ngx_int_t ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
+ngx_int_t ngx_keyval_init_zone_none(ngx_shm_zone_t *shm_zone, void *data);
+#endif
 ngx_keyval_shm_ctx_t *ngx_keyval_shm_get_context(ngx_shm_zone_t *shm, ngx_log_t *log);
 ngx_int_t ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm, ngx_str_t *key, ngx_str_t *val);
 ngx_int_t ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm, ngx_str_t *key, ngx_str_t *val, ngx_log_t *log);
 
+/* ngx_keyval_store_redis.c */
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 void ngx_keyval_redis_cleanup_ctx(void *data);
 redisContext *ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx, ngx_keyval_redis_conf_t *conf, ngx_log_t *log);

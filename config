@@ -15,7 +15,13 @@ END
   NGX_KEYVAL_LIBS="-lhiredis"
 fi
 
-KEYVAL_SRCS="$ngx_addon_dir/src/ngx_keyval.c"
+KEYVAL_SRCS="\
+  $ngx_addon_dir/src/ngx_keyval_zone.c \
+  $ngx_addon_dir/src/ngx_keyval_conf.c \
+  $ngx_addon_dir/src/ngx_keyval_variable.c \
+  $ngx_addon_dir/src/ngx_keyval_store_shm.c \
+  $ngx_addon_dir/src/ngx_keyval_store_redis.c \
+"
 
 ngx_addon_name=ngx_http_keyval_module
 
