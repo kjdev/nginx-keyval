@@ -13,7 +13,6 @@ typedef enum {
 } ngx_keyval_zone_type_t;
 
 typedef struct {
-    ngx_array_t *indexes;
     ngx_array_t *variables;
     ngx_array_t *zones;
 } ngx_keyval_conf_t;
@@ -49,12 +48,24 @@ typedef struct {
     time_t     connect_timeout;
 } ngx_keyval_redis_conf_t;
 
+/* Forward declaration for store ops */
+typedef struct ngx_keyval_zone_s ngx_keyval_zone_t;
+
+/* Store abstraction */
 typedef struct {
+    ngx_int_t (*get)(ngx_keyval_zone_t *zone, ngx_str_t *key, ngx_str_t *val,
+        ngx_pool_t *pool, ngx_log_t *log);
+    void (*set)(ngx_keyval_zone_t *zone, ngx_str_t *key, ngx_str_t *val,
+        ngx_pool_t *pool, ngx_log_t *log);
+} ngx_keyval_store_ops_t;
+
+struct ngx_keyval_zone_s {
     ngx_str_t                name;
     ngx_keyval_zone_type_t   type;
     ngx_shm_zone_t          *shm;
+    ngx_keyval_store_ops_t  *store;
     ngx_keyval_redis_conf_t  redis;
-} ngx_keyval_zone_t;
+};
 
 typedef struct {
     ngx_array_t       *indexes;
@@ -97,6 +108,16 @@ void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 ngx_int_t ngx_keyval_variable_get_key(ngx_connection_t *connection,
     ngx_keyval_variable_t *var, ngx_str_t *key,
     ngx_keyval_get_index_variable get_index_variable, void *data);
+
+/* ngx_keyval_store.c */
+extern ngx_keyval_store_ops_t ngx_keyval_store_shm_ops;
+#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
+extern ngx_keyval_store_ops_t ngx_keyval_store_redis_ops;
+#endif
+ngx_int_t ngx_keyval_store_get(ngx_keyval_zone_t *zone, ngx_str_t *key,
+    ngx_str_t *val, ngx_pool_t *pool, ngx_log_t *log);
+void ngx_keyval_store_set(ngx_keyval_zone_t *zone, ngx_str_t *key,
+    ngx_str_t *val, ngx_pool_t *pool, ngx_log_t *log);
 
 /* ngx_keyval_store_shm.c */
 ngx_int_t ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data);

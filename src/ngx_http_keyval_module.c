@@ -154,7 +154,7 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
 
     var = (ngx_keyval_variable_t *) data;
 
-    if (ngx_keyval_variable_get_key(r->connection, var, key,
+    if (ngx_keyval_variable_get_key(r->pool, r->connection, var, key,
                                     ngx_http_keyval_get_indexed_variable,
                                     (void *) r) != NGX_OK)
     {
@@ -174,42 +174,6 @@ ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
     return NGX_OK;
 }
 
-#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
-static ngx_keyval_redis_ctx_t *
-ngx_http_keyval_redis_get_ctx(ngx_http_request_t *r)
-{
-    ngx_pool_cleanup_t *cleanup;
-    ngx_keyval_redis_ctx_t *ctx;
-
-    ctx = ngx_http_get_module_ctx(r, ngx_http_keyval_module);
-    if (ctx != NULL) {
-        return ctx;
-    }
-
-    ctx = ngx_pcalloc(r->pool, sizeof(ngx_keyval_redis_ctx_t));
-    if (ctx == NULL) {
-        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
-                      "keyval: failed to allocate redis context");
-        return NULL;
-    }
-
-    ctx->redis = NULL;
-
-    ngx_http_set_ctx(r, ctx, ngx_http_keyval_module);
-
-    cleanup = ngx_pool_cleanup_add(r->pool, 0);
-    if (cleanup == NULL) {
-        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
-                      "keyval: failed to allocate redis context cleanup");
-        return NULL;
-    }
-    cleanup->handler = ngx_keyval_redis_cleanup_ctx;
-    cleanup->data = ctx;
-
-    return ctx;
-}
-#endif
-
 static void
 ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
     ngx_http_variable_value_t *v,
@@ -225,27 +189,7 @@ ngx_http_keyval_variable_set_handler(ngx_http_request_t *r,
     val.data = v->data;
     val.len = v->len;
 
-    if (zone->type == NGX_KEYVAL_ZONE_SHM) {
-        ngx_keyval_shm_ctx_t *ctx;
-
-        ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
-        ngx_keyval_shm_set_data(ctx, zone->shm, &key, &val, r->connection->log);
-#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
-    } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
-        ngx_keyval_redis_ctx_t *ctx;
-        redisContext *context;
-
-        ctx = ngx_http_keyval_redis_get_ctx(r);
-        context = ngx_keyval_redis_get_context(ctx, &zone->redis,
-                                               r->connection->log);
-        ngx_keyval_redis_set_data(context, &zone->redis, &zone->name, &key,
-                                  &val,
-                                  r->connection->log);
-#endif
-    } else {
-        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                      "keyval: rejected due to wrong zone type");
-    }
+    ngx_keyval_store_set(zone, &key, &val, r->pool, r->connection->log);
 }
 
 static ngx_int_t
@@ -262,39 +206,19 @@ ngx_http_keyval_variable_get_handler(ngx_http_request_t *r,
         return NGX_OK;
     }
 
-    if (zone->type == NGX_KEYVAL_ZONE_SHM) {
-        ngx_keyval_shm_ctx_t *ctx;
-
-        ctx = ngx_keyval_shm_get_context(zone->shm, r->connection->log);
-        rc = ngx_keyval_shm_get_data(ctx, zone->shm, &key, &val);
-#if (NGX_HAVE_KEYVAL_ZONE_REDIS)
-    } else if (zone->type == NGX_KEYVAL_ZONE_REDIS) {
-        ngx_keyval_redis_ctx_t *ctx;
-        redisContext *context;
-
-        ctx = ngx_http_keyval_redis_get_ctx(r);
-        context = ngx_keyval_redis_get_context(ctx, &zone->redis,
-                                               r->connection->log);
-        rc = ngx_keyval_redis_get_data(context, &zone->name, &key, &val,
-                                       r->pool, r->connection->log);
-#endif
-    } else {
-        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                      "keyval: rejected due to wrong zone type");
-        v->not_found = 1;
-        return NGX_OK;
-    }
+    rc = ngx_keyval_store_get(zone, &key, &val, r->pool, r->connection->log);
 
     if (rc == NGX_OK) {
         v->data = val.data;
         v->len = val.len;
+        v->not_found = 0;
     } else {
         v->data = NULL;
         v->len = 0;
+        v->not_found = 1;
     }
     v->valid = 1;
     v->no_cacheable = 0;
-    v->not_found = 0;
 
     return NGX_OK;
 }

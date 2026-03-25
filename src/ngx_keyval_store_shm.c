@@ -101,14 +101,14 @@ ngx_keyval_init_zone(ngx_shm_zone_t *shm_zone, void *data)
     ngx_rbtree_init(&ctx->sh->rbtree, &ctx->sh->sentinel,
                     ngx_keyval_rbtree_insert_value);
 
-    len = sizeof(" in in keyval zone \"\"") + shm_zone->shm.name.len;
+    len = sizeof(" in keyval zone \"\"") + shm_zone->shm.name.len;
 
     ctx->shpool->log_ctx = ngx_slab_alloc(ctx->shpool, len);
     if (ctx->shpool->log_ctx == NULL) {
         return NGX_ERROR;
     }
 
-    ngx_sprintf(ctx->shpool->log_ctx, " in in keyval zone \"%V\"%Z",
+    ngx_sprintf(ctx->shpool->log_ctx, " in keyval zone \"%V\"%Z",
                 &shm_zone->shm.name);
 
     ctx->shpool->log_nomem = 0;
@@ -170,9 +170,6 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
     }
 
     kv = (ngx_keyval_node_t *) &node->color;
-
-    // key->len = kv->len;
-    // key->data = kv->data;
 
     val->len = kv->size - kv->len;
     val->data = kv->data + kv->len;

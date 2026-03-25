@@ -33,7 +33,7 @@ ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
 
     if (!conf) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "\"%V\" failed to main configuration", &cmd->name);
+                           "\"%V\" failed to get main configuration", &cmd->name);
         return NULL;
     }
 
@@ -56,7 +56,7 @@ ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
     zone = ngx_array_push(conf->zones);
     if (zone == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "\"%V\" failed to allocate iteam", &cmd->name);
+                           "\"%V\" failed to allocate item", &cmd->name);
         return NULL;
     }
 
@@ -130,6 +130,8 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     if (zone == NULL) {
         return NGX_CONF_ERROR;
     }
+
+    zone->store = &ngx_keyval_store_shm_ops;
 
     ctx = ngx_pcalloc(cf->pool, sizeof(ngx_keyval_shm_ctx_t));
     if (ctx == NULL) {
@@ -220,6 +222,8 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
         return NGX_CONF_ERROR;
     }
 
+    zone->store = &ngx_keyval_store_redis_ops;
+
     /* NOTE: for used check */
     shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
     if (shm_zone == NULL) {
@@ -253,7 +257,7 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
         if (ngx_strncmp(value[i].data, "port=", 5) == 0 && value[i].len > 5) {
             zone->redis.port = ngx_atoi(value[i].data + 5, value[i].len - 5);
-            if (zone->redis.port <= 0) {
+            if (zone->redis.port <= 0 || zone->redis.port > 65535) {
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                    "\"%V\" invalid port \"%V\"",
                                    &cmd->name, &value[i]);
