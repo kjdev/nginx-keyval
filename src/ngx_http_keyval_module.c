@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Tatsuya Kamijo
+ * Copyright (c) Bengo4.com, Inc.
+ */
+
 #include <ngx_http.h>
 #include "ngx_keyval.h"
 

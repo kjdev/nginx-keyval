@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Tatsuya Kamijo
+ * Copyright (c) Bengo4.com, Inc.
+ */
+
 #include "ngx_keyval.h"
 
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)

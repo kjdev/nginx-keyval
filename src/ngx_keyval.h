@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Tatsuya Kamijo
+ * Copyright (c) Bengo4.com, Inc.
+ */
+
 #ifndef NGX_KEYVAL_H
 #define NGX_KEYVAL_H
 
