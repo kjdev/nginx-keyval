@@ -1,201 +1,60 @@
-nginx-keyval
-============
+# nginx keyval Module
 
-This nginx module creates variables with values taken from key-value pairs.
+## Overview
 
-> This module is heavily inspired by the nginx original
-> [http_keyval_module](https://nginx.org/en/docs/http/ngx_http_keyval_module.html).
+nginx-keyval is a key-value store dynamic module for nginx. It was developed inspired by the commercial version of nginx's [ngx_http_keyval_module](https://nginx.org/en/docs/http/ngx_http_keyval_module.html).
 
-Dependency
-----------
+**License**: MIT License
 
-Using the Redis store.
+### Key Features
 
-- [hiredis](https://github.com/redis/hiredis)
+- **Dual Backend**: Supports two types of storage backends: shared memory (SHM) and Redis
+- **HTTP / Stream Support**: Works in both HTTP and Stream contexts
+- **TTL Support**: Configurable expiration time for key-value pairs
+- **Composite Keys**: Build keys by combining multiple variables and literal strings (e.g., `$remote_addr:$http_user_agent`)
+- **Variable Expansion**: Use nginx variables as keys, dynamically expanded at runtime
 
-Installation
-------------
+## Quick Start
 
-### Build install
+See [INSTALL.md](docs/INSTALL.md) for installation instructions.
 
-``` sh
-$ : "clone repository"
-$ git clone https://github.com/kjdev/nginx-keyval
-$ cd nginx-keyval
-$ : "get nginx source"
-$ NGINX_VERSION=1.x.x # specify nginx version
-$ wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
-$ tar -zxf nginx-${NGINX_VERSION}.tar.gz
-$ cd nginx-${NGINX_VERSION}
-$ : "using redis store"
-$ : export NGX_KEYVAL_ZONE_REDIS=1
-$ : "build module"
-$ ./configure --add-dynamic-module=../
-$ make && make install
-```
+### Minimal Configuration Example
 
-### Docker
-
-``` sh
-$ docker build -t nginx-keyval .
-$ : "app.conf: Create nginx configuration"
-$ docker run -p 80:80 -v $PWD/app.conf:/etc/nginx/http.d/default.conf nginx-keyval
-```
-
-> Github package: ghcr.io/kjdev/nginx-keyval/nginx
-
-Configuration: `ngx_http_keyval_module`
----------------------------------------
-
-### Example
-
-```
+```nginx
 http {
-  keyval_zone zone=one:32k;
-  keyval $arg_text $text zone=one;
-  ...
-  server {
-    ...
-    location / {
-      return 200 $text;
+    keyval_zone zone=one:32k;
+    keyval $arg_text $text zone=one;
+
+    server {
+        listen 80;
+
+        location / {
+            return 200 $text;
+        }
     }
-  }
 }
 ```
 
-### Directives
+This configuration retrieves a value from the shared memory zone `one` using the query parameter `text` as the key, and stores it in the variable `$text`.
 
-```
-Syntax: keyval key $variable zone=name;
-Default: -
-Context: http
-```
+## Directives
 
-Creates a new `$variable` whose value is looked up by the `key`
-in the key-value database.
+| Directive | Description | Context |
+|---|---|---|
+| `keyval` | Define a variable from key-value pairs | http, stream |
+| `keyval_zone` | Define a shared memory zone | http, stream |
+| `keyval_zone_redis` | Define a Redis zone | http, stream |
 
-The database is stored in shared memory or Redis as specified
-by the zone parameter.
+See [DIRECTIVES.md](docs/DIRECTIVES.md) for detailed directive reference.
 
-In `key`, you can use a mix of variables and text or just variables.
+## Related Documentation
 
-> For example:
-> - `$remote_addr:$http_user_agent`
-> - `'$remote_addr    $http_user_agent   $host "a random text"'`
+**Configuration & Operations**:
+- [DIRECTIVES.md](docs/DIRECTIVES.md): Directive Reference
+- [EXAMPLES.md](docs/EXAMPLES.md): Configuration Examples
+- [INSTALL.md](docs/INSTALL.md): Installation Instructions
+- [SECURITY.md](docs/SECURITY.md): Security Guidelines
+- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): Troubleshooting Guide
 
-```
-Syntax: keyval_zone zone=name:size [timeout=time] [ttl=time];
-Default: -
-Context: http
-```
-
-Sets the `name` and `size` of the shared memory zone that
-keeps the key-value database.
-
-The optional `timeout` or `ttl` parameter sets the time to live
-which key-value pairs are removed (default value is `0` seconds).
-
-```
-Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
-Default: -
-Context: http
-```
-
-> Using the Redis store
-
-Sets the `name` of the Redis zone that keeps the key-value database.
-
-The optional `hostname` parameter sets the Redis hostname
-(default value is `127.0.0.1`).
-
-The optional `port` parameter sets the Redis port
-(default value is `6379`).
-
-The optional `database` parameter sets the Redis database number
-(default value is `0`).
-
-The optional `connect_timeout` parameter sets the Redis connection
-timeout seconds (default value is `3`).
-
-The optional `ttl` parameter sets the time to live
-which key-value pairs are removed (default value is `0` seconds).
-
-Configuration: `ngx_stream_keyval_module`
----------------------------------------
-
-### Example
-
-```
-stream {
-  keyval_zone zone=one:32k;
-  keyval $ssl_server_name $name zone=one;
-
-  server {
-    listen 12345 ssl;
-    proxy_pass $name;
-    ssl_certificate /usr/share/nginx/conf/cert.pem;
-    ssl_certificate_key /usr/share/nginx/conf/cert.key;
-  }
-}
-```
-
-### Directives
-
-```
-Syntax: keyval key $variable zone=name;
-Default: -
-Context: http
-```
-
-Creates a new `$variable` whose value is looked up by the `key`
-in the key-value database.
-
-The database is stored in shared memory or Redis as specified
-by the zone parameter.
-
-```
-Syntax: keyval_zone zone=name:size [timeout=time] [ttl=time];
-Default: -
-Context: http
-```
-
-Sets the `name` and `size` of the shared memory zone that
-keeps the key-value database.
-
-The optional `timeout` or `ttl` parameter sets the time to live which key-value pairs are removed (default value is 0 seconds).
-
-```
-Syntax: keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
-Default: -
-Context: http
-```
-
-> Using the Redis store
-
-Sets the `name` of the Redis zone that keeps the key-value database.
-
-The optional `hostname` parameter sets the Redis hostname
-(default value is `127.0.0.1`).
-
-The optional `port` parameter sets the Redis port
-(default value is `6379`).
-
-The optional `database` parameter sets the Redis database number
-(default value is `0`).
-
-The optional `connect_timeout` parameter sets the Redis connection
-timeout seconds (default value is `3`).
-
-The optional `ttl` parameter sets the time to live
-which key-value pairs are removed (default value is `0` seconds).
-
-Example
--------
-
-- [OpenID Connect Authentication](example/README.md)
-
-
-TODO
-----
-
-- [ ] Support for `[state=file]` in `keyval_zone` directive
+**Reference**:
+- [COMMERCIAL_COMPATIBILITY.md](docs/COMMERCIAL_COMPATIBILITY.md): Commercial Version Compatibility
