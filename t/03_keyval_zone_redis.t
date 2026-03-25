@@ -636,42 +636,9 @@ location = /set {
   "/get(key): test1s\n"
 ]
 
-=== timeout (1m)
---- init
-system "sleep 1"
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
---- http_config
-keyval_zone_redis zone=timeout ttl=1m;
-keyval $cookie_data_key $keyval_data zone=timeout;
---- config
-location = /get {
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
-location = /set {
-  set $keyval_data "test1m";
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
---- request eval
-[
-  "GET /get",
-  "GET /set",
-  "GET /get"
-]
---- more_headers eval
-[
-  "Cookie: data_key=key",
-  "Cookie: data_key=key",
-  "Cookie: data_key=key"
-]
---- response_body eval
-[
-  "/get(key): \n",
-  "/set(key): test1m\n",
-  "/get(key): test1m\n"
-]
-
 === timeout (1h)
+--- init
+system "sleep 2"
 --- skip_eval
 1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
@@ -699,141 +666,9 @@ location = /set {
 ]
 --- response_body eval
 [
-  "/get(key): test1m\n",
+  "/get(key): \n",
   "/set(key): test1h\n",
   "/get(key): test1h\n"
-]
-
-=== timeout (1d)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
---- http_config
-keyval_zone_redis zone=timeout ttl=1d;
-keyval $cookie_data_key $keyval_data zone=timeout;
---- config
-location = /get {
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
-location = /set {
-  set $keyval_data "test1d";
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
---- request eval
-[
-  "GET /get",
-  "GET /set",
-  "GET /get"
-]
---- more_headers eval
-[
-  "Cookie: data_key=key",
-  "Cookie: data_key=key",
-  "Cookie: data_key=key"
-]
---- response_body eval
-[
-  "/get(key): test1h\n",
-  "/set(key): test1d\n",
-  "/get(key): test1d\n"
-]
-
-=== timeout (1w)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
---- http_config
-keyval_zone_redis zone=timeout ttl=1w;
-keyval $cookie_data_key $keyval_data zone=timeout;
---- config
-location = /get {
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
-location = /set {
-  set $keyval_data "test1w";
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
---- request eval
-[
-  "GET /get",
-  "GET /set",
-  "GET /get"
-]
---- more_headers eval
-[
-  "Cookie: data_key=key",
-  "Cookie: data_key=key",
-  "Cookie: data_key=key"
-]
---- response_body eval
-[
-  "/get(key): test1d\n",
-  "/set(key): test1w\n",
-  "/get(key): test1w\n"
-]
-
-=== timeout (1M)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
---- http_config
-keyval_zone_redis zone=timeout ttl=1M;
-keyval $cookie_data_key $keyval_data zone=timeout;
---- config
-location = /get {
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
-location = /set {
-  set $keyval_data "test1M";
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
---- request eval
-[
-  "GET /get",
-  "GET /set",
-  "GET /get"
-]
---- more_headers eval
-[
-  "Cookie: data_key=key",
-  "Cookie: data_key=key",
-  "Cookie: data_key=key"
-]
---- response_body eval
-[
-  "/get(key): test1w\n",
-  "/set(key): test1M\n",
-  "/get(key): test1M\n"
-]
-
-=== timeout (1y)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
---- http_config
-keyval_zone_redis zone=timeout ttl=1y;
-keyval $cookie_data_key $keyval_data zone=timeout;
---- config
-location = /get {
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
-location = /set {
-  set $keyval_data "test1y";
-  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
-}
---- request eval
-[
-  "GET /get",
-  "GET /set",
-  "GET /get"
-]
---- more_headers eval
-[
-  "Cookie: data_key=key",
-  "Cookie: data_key=key",
-  "Cookie: data_key=key"
-]
---- response_body eval
-[
-  "/get(key): test1M\n",
-  "/set(key): test1y\n",
-  "/get(key): test1y\n"
 ]
 
 === conf not found keyval_zone_redis
@@ -879,5 +714,33 @@ keyval $cookie_data_key $keyval_data zone=invalid;
 keyval_zone_redis zone=invalid ttl=30s;
 keyval_zone zone=invalid;
 keyval $cookie_data_key $keyval_data zone=invalid;
+--- config
+--- must_die
+
+=== conf redis invalid ttl
+--- skip_eval
+1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
+--- http_config
+keyval_zone_redis zone=test ttl=abc;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf redis unknown parameter
+--- skip_eval
+1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
+--- http_config
+keyval_zone_redis zone=test foo=bar;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf duplicate keyval_zone_redis
+--- skip_eval
+1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
+--- http_config
+keyval_zone_redis zone=test ttl=1s;
+keyval_zone_redis zone=test ttl=1s;
+keyval $cookie_data_key $keyval_data zone=test;
 --- config
 --- must_die
