@@ -152,7 +152,7 @@ ngx_keyval_shm_get_context(ngx_shm_zone_t *shm, ngx_log_t *log)
 
 ngx_int_t
 ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
-    ngx_str_t *key, ngx_str_t *val)
+    ngx_str_t *key, ngx_str_t *val, ngx_pool_t *pool)
 {
     uint32_t hash;
     ngx_rbtree_node_t *node;
@@ -168,16 +168,22 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
 
     node = ngx_keyval_rbtree_lookup(&ctx->sh->rbtree, key, hash);
 
-    ngx_shmtx_unlock(&ctx->shpool->mutex);
-
     if (node == NULL) {
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
         return NGX_DECLINED;
     }
 
     kv = (ngx_keyval_node_t *) &node->color;
 
     val->len = kv->size - kv->len;
-    val->data = kv->data + kv->len;
+    val->data = ngx_pnalloc(pool, val->len);
+    if (val->data == NULL) {
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+        return NGX_ERROR;
+    }
+    ngx_memcpy(val->data, kv->data + kv->len, val->len);
+
+    ngx_shmtx_unlock(&ctx->shpool->mutex);
 
     return NGX_OK;
 }
@@ -189,9 +195,14 @@ ngx_keyval_delete_timeout_node_shm(ngx_event_t *node_status)
         = (ngx_keyval_node_timeout_t *) node_status->data;
 
     if (arg->ctx->shpool != NULL && arg->node != NULL) {
+        ngx_shmtx_lock(&arg->ctx->shpool->mutex);
+
         ngx_rbtree_delete(&arg->ctx->sh->rbtree, arg->node);
-        ngx_slab_free(arg->ctx->shpool, arg->node);
-        ngx_slab_free(arg->ctx->shpool, arg);
+        ngx_slab_free_locked(arg->ctx->shpool, arg->node);
+        ngx_slab_free_locked(arg->ctx->shpool, arg);
+        ngx_slab_free_locked(arg->ctx->shpool, node_status);
+
+        ngx_shmtx_unlock(&arg->ctx->shpool->mutex);
     }
 }
 
@@ -256,7 +267,8 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
             }
 
             timeout_node = ngx_slab_alloc_locked(ctx->shpool,
-                                     sizeof(ngx_keyval_node_timeout_t));
+                                                 sizeof(
+                                                     ngx_keyval_node_timeout_t));
             if (timeout_node == NULL) {
                 ngx_log_error(NGX_LOG_WARN, log, 0,
                               "keyval: failed to allocate timeout node, "
@@ -274,7 +286,7 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
             timeout_node_event->log = shm->shm.log;
             ngx_add_timer(timeout_node_event, ctx->ttl * 1000);
 
-        ttl_done: ;
+ttl_done:   ;
         }
     }
 

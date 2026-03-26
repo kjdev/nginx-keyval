@@ -17,7 +17,7 @@ ngx_keyval_store_shm_get(ngx_keyval_zone_t *zone, ngx_str_t *key,
         return NGX_ERROR;
     }
 
-    return ngx_keyval_shm_get_data(ctx, zone->shm, key, val);
+    return ngx_keyval_shm_get_data(ctx, zone->shm, key, val, pool);
 }
 
 

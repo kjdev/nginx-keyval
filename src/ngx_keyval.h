@@ -132,7 +132,7 @@ ngx_int_t ngx_keyval_init_zone_none(ngx_shm_zone_t *shm_zone, void *data);
 ngx_keyval_shm_ctx_t *ngx_keyval_shm_get_context(ngx_shm_zone_t *shm,
     ngx_log_t *log);
 ngx_int_t ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx,
-    ngx_shm_zone_t *shm, ngx_str_t *key, ngx_str_t *val);
+    ngx_shm_zone_t *shm, ngx_str_t *key, ngx_str_t *val, ngx_pool_t *pool);
 ngx_int_t ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx,
     ngx_shm_zone_t *shm, ngx_str_t *key, ngx_str_t *val, ngx_log_t *log);
 
