@@ -28,6 +28,9 @@ ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx,
     }
 
     if (ctx->redis) {
+        if (ctx->redis->err) {
+            return NULL;
+        }
         return ctx->redis;
     }
 
@@ -59,12 +62,16 @@ ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx,
         if (!resp) {
             ngx_log_error(NGX_LOG_ERR, log, 0,
                           "keyval: failed to command redis: SELECT");
+            redisFree(ctx->redis);
+            ctx->redis = NULL;
             return NULL;
         } else if (resp->type == REDIS_REPLY_ERROR) {
             ngx_log_error(NGX_LOG_ERR, log, 0,
                           "keyval: failed to command redis: SELECT: %s",
                           resp->str);
             freeReplyObject(resp);
+            redisFree(ctx->redis);
+            ctx->redis = NULL;
             return NULL;
         }
         freeReplyObject(resp);
@@ -141,7 +148,7 @@ ngx_keyval_redis_set_data(redisContext *ctx, ngx_keyval_redis_conf_t *conf,
                                            key->data, key->len,
                                            val->data, val->len);
     } else {
-        resp = (redisReply *) redisCommand(ctx, "SETEX %b:%b %d %b",
+        resp = (redisReply *) redisCommand(ctx, "SETEX %b:%b %ld %b",
                                            zone->data, zone->len,
                                            key->data, key->len,
                                            conf->ttl, val->data, val->len);
