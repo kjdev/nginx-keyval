@@ -1,3 +1,21 @@
+use strict;
+use warnings;
+
+BEGIN {
+    if (!defined $ENV{TEST_NGINX_LOAD_MODULES}
+        || $ENV{TEST_NGINX_LOAD_MODULES} !~ /ngx_stream_keyval_module/)
+    {
+        require Test::More;
+        Test::More::plan(skip_all => "ngx_stream_keyval_module is not loaded");
+        exit 0;
+    }
+    if ((!defined $ENV{NGX_HTTP_KEYVAL_ZONE_REDIS} or $ENV{NGX_HTTP_KEYVAL_ZONE_REDIS} eq '') and (!defined $ENV{NGX_KEYVAL_ZONE_REDIS} or $ENV{NGX_KEYVAL_ZONE_REDIS} eq '')) {
+        require Test::More;
+        Test::More::plan(skip_all => "redis is not supported");
+        exit 0;
+    }
+}
+
 use Test::Nginx::Socket 'no_plan';
 
 no_root_location();
@@ -8,8 +26,6 @@ run_tests();
 __DATA__
 
 === get
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -42,8 +58,6 @@ GET /get
 --- error_code: 502
 
 === set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -76,8 +90,6 @@ GET /set
 /set: 127.0.0.1:8181
 
 === get and set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -131,8 +143,6 @@ location = /set {
 ]
 
 === multiple set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -203,8 +213,6 @@ location = /set2 {
 ]
 
 === multiple key
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -268,8 +276,6 @@ location = /set2 {
 ]
 
 === multiple variable
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -341,8 +347,6 @@ location = /set2 {
 ]
 
 === multiple zone
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -414,8 +418,6 @@ location = /get2 {
 ]
 
 === keep set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -469,8 +471,6 @@ location = /set {
 ]
 
 === keep get
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=300s;
@@ -509,8 +509,6 @@ location = /get {
 ]
 
 === hostname (default)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -564,8 +562,6 @@ location = /set {
 ]
 
 === hostname (127.0.0.1)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis hostname=127.0.0.1 ttl=30s;
@@ -619,8 +615,6 @@ location = /set {
 ]
 
 === hostname (192.168.0.1)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis hostname=192.168.0.1 ttl=30s;
@@ -665,8 +659,6 @@ GET /get
 --- timeout: 5s
 
 === port (default)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -728,8 +720,6 @@ location = /set {
 ]
 
 === port (6379)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis port=6379 ttl=300s;
@@ -783,8 +773,6 @@ location = /set {
 ]
 
 === port (6380)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis port=6380 ttl=300s;
@@ -832,8 +820,6 @@ GET /get
 --- timeout: 5s
 
 === database (default)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -887,8 +873,6 @@ location = /set {
 ]
 
 === database (0)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis database=0 ttl=300s;
@@ -942,8 +926,6 @@ location = /set {
 ]
 
 === database (1)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis database=1 ttl=300s;
@@ -1003,8 +985,6 @@ location = /set {
 ]
 
 === timeout (1s)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "redis-cli flushall"
 --- post_main_config
@@ -1058,8 +1038,6 @@ location = /set {
 ]
 
 === timeout (1h)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- init
 system "sleep 2"
 --- post_main_config
@@ -1113,8 +1091,6 @@ location = /set {
 ]
 
 === conf not found keyval_zone_redis
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval "stream_conf_not_found" $keyval_host zone=stream_redis;
@@ -1123,8 +1099,6 @@ stream {
 --- must_die
 
 === conf not found zone parameter
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=30s;
@@ -1134,8 +1108,6 @@ stream {
 --- must_die
 
 === conf invalid zone parameter
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=30s;
@@ -1145,8 +1117,6 @@ stream {
 --- must_die
 
 === conf same for keyval_zone and keyval_zone_redis
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone zone=stream_redis;
@@ -1157,8 +1127,6 @@ stream {
 --- must_die
 
 === conf same for keyval_zone_redis and keyval_zone
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=30s;
@@ -1169,8 +1137,6 @@ stream {
 --- must_die
 
 === conf duplicate for keyval_zone_redis
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=30s;
@@ -1181,8 +1147,6 @@ stream {
 --- must_die
 
 === conf same keyval_zone_redis for stream{} and http{}
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/ or ((!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq ''))
 --- post_main_config
 stream {
   keyval_zone_redis zone=stream_redis ttl=30s;

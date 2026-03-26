@@ -1,3 +1,14 @@
+use strict;
+use warnings;
+
+BEGIN {
+    if ((!defined $ENV{NGX_HTTP_KEYVAL_ZONE_REDIS} or $ENV{NGX_HTTP_KEYVAL_ZONE_REDIS} eq '') and (!defined $ENV{NGX_KEYVAL_ZONE_REDIS} or $ENV{NGX_KEYVAL_ZONE_REDIS} eq '')) {
+        require Test::More;
+        Test::More::plan(skip_all => "redis is not supported");
+        exit 0;
+    }
+}
+
 use Test::Nginx::Socket 'no_plan';
 
 no_root_location();
@@ -10,8 +21,6 @@ __DATA__
 === get
 --- init
 system "redis-cli flushall"
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=get ttl=30s;
 keyval $cookie_data_key $keyval_data zone=get;
@@ -31,8 +40,6 @@ Cookie: data_key=key
 /get(key): 
 
 === set
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=set ttl=30s;
 keyval $cookie_data_key $keyval_data zone=set;
@@ -52,8 +59,6 @@ Cookie: data_key=key
 /set(key): test
 
 === get and set
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=test3 ttl=30s;
 keyval $cookie_data_key $keyval_data zone=test3;
@@ -85,8 +90,6 @@ location = /set {
 ]
 
 === multiple set
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=multiple_set ttl=30s;
 keyval $cookie_data_key $keyval_data zone=multiple_set;
@@ -128,8 +131,6 @@ location = /set2 {
 ]
 
 === multiple key
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=multiple_key ttl=30s;
 keyval $cookie_data_key $keyval_data zone=multiple_key;
@@ -161,8 +162,6 @@ location = /set {
 ]
 
 === multiple variable
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=multiple_variable ttl=30s;
 keyval $cookie_data_key $keyval_data1 zone=multiple_variable;
@@ -205,8 +204,6 @@ location = /set2 {
 ]
 
 === multiple zone
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=multiple_zone1 ttl=30s;
 keyval_zone_redis zone=multiple_zone2 ttl=30s;
@@ -250,8 +247,6 @@ location = /set2 {
 ]
 
 === keep set
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=keep ttl=300s;
 keyval $cookie_data_key $keyval_data zone=keep;
@@ -283,8 +278,6 @@ location = /set {
 ]
 
 === keep get
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=keep ttl=300s;
 keyval $cookie_data_key $keyval_data zone=keep;
@@ -306,8 +299,6 @@ location = /get {
 ]
 
 === hostname (default)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=hostname ttl=300s;
 keyval $cookie_data_key $keyval_data zone=hostname;
@@ -339,8 +330,6 @@ location = /set {
 ]
 
 === hostname (127.0.0.1)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=hostname hostname=127.0.0.1 ttl=300s;
 keyval $cookie_data_key $keyval_data zone=hostname;
@@ -372,8 +361,6 @@ location = /set {
 ]
 
 === hostname (192.168.0.1)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- timeout: 5s
 --- http_config
 keyval_zone_redis zone=hostname hostname=192.168.0.1 ttl=300s;
@@ -406,8 +393,6 @@ location = /set {
 ]
 
 === port (default)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=port ttl=300s;
 keyval $cookie_data_key $keyval_data zone=port;
@@ -439,8 +424,6 @@ location = /set {
 ]
 
 === port (6379)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=port port=6379 ttl=300s;
 keyval $cookie_data_key $keyval_data zone=port;
@@ -472,8 +455,6 @@ location = /set {
 ]
 
 === port (6380)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=port port=6380 ttl=300s;
 keyval $cookie_data_key $keyval_data zone=port;
@@ -505,8 +486,6 @@ location = /set {
 ]
 
 === database (default)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=database ttl=300s;
 keyval $cookie_data_key $keyval_data zone=database;
@@ -538,8 +517,6 @@ location = /set {
 ]
 
 === database (0)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=database database=0 ttl=300s;
 keyval $cookie_data_key $keyval_data zone=database;
@@ -571,8 +548,6 @@ location = /set {
 ]
 
 === database (1)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=database database=1 ttl=300s;
 keyval $cookie_data_key $keyval_data zone=database;
@@ -604,8 +579,6 @@ location = /set {
 ]
 
 === timeout (1s)
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=timeout ttl=1s;
 keyval $cookie_data_key $keyval_data zone=timeout;
@@ -639,8 +612,6 @@ location = /set {
 === timeout (1h)
 --- init
 system "sleep 2"
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=timeout ttl=1h;
 keyval $cookie_data_key $keyval_data zone=timeout;
@@ -672,16 +643,12 @@ location = /set {
 ]
 
 === conf not found keyval_zone_redis
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval $cookie_data_key $keyval_data zone=invalid;
 --- config
 --- must_die
 
 === conf not found zone parameter
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=invalid ttl=30s;
 keyval $cookie_data_key $keyval_data;
@@ -689,8 +656,6 @@ keyval $cookie_data_key $keyval_data;
 --- must_die
 
 === conf invalid zone parameter
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=invalid ttl=30s;
 keyval $cookie_data_key $keyval_data zone=test;
@@ -698,8 +663,6 @@ keyval $cookie_data_key $keyval_data zone=test;
 --- must_die
 
 === conf same for keyval_zone and keyval_zone_redis
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone zone=invalid;
 keyval_zone_redis zone=invalid ttl=30s;
@@ -708,8 +671,6 @@ keyval $cookie_data_key $keyval_data zone=invalid;
 --- must_die
 
 === conf same for keyval_zone_redis and keyval_zone
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=invalid ttl=30s;
 keyval_zone zone=invalid;
@@ -718,8 +679,6 @@ keyval $cookie_data_key $keyval_data zone=invalid;
 --- must_die
 
 === conf redis invalid ttl
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=test ttl=abc;
 keyval $cookie_data_key $keyval_data zone=test;
@@ -727,8 +686,6 @@ keyval $cookie_data_key $keyval_data zone=test;
 --- must_die
 
 === conf redis unknown parameter
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=test foo=bar;
 keyval $cookie_data_key $keyval_data zone=test;
@@ -736,8 +693,6 @@ keyval $cookie_data_key $keyval_data zone=test;
 --- must_die
 
 === conf duplicate keyval_zone_redis
---- skip_eval
-1: (!defined $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_HTTP_KEYVAL_ZONE_REDIS"} eq '') and (!defined $ENV{"NGX_KEYVAL_ZONE_REDIS"} or $ENV{"NGX_KEYVAL_ZONE_REDIS"} eq '')
 --- http_config
 keyval_zone_redis zone=test ttl=1s;
 keyval_zone_redis zone=test ttl=1s;

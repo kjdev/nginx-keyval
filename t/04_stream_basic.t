@@ -1,3 +1,16 @@
+use strict;
+use warnings;
+
+BEGIN {
+    if (!defined $ENV{TEST_NGINX_LOAD_MODULES}
+        || $ENV{TEST_NGINX_LOAD_MODULES} !~ /ngx_stream_keyval_module/)
+    {
+        require Test::More;
+        Test::More::plan(skip_all => "ngx_stream_keyval_module is not loaded");
+        exit 0;
+    }
+}
+
 use Test::Nginx::Socket 'no_plan';
 
 no_root_location();
@@ -8,8 +21,6 @@ run_tests();
 __DATA__
 
 === get
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -40,8 +51,6 @@ GET /get
 --- error_code: 502
 
 === set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -72,8 +81,6 @@ GET /set
 /set: 127.0.0.1:8181
 
 === get and set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -125,8 +132,6 @@ location = /set {
 ]
 
 === multiple set
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -195,8 +200,6 @@ location = /set2 {
 ]
 
 === multiple key
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -258,8 +261,6 @@ location = /set2 {
 ]
 
 === multiple variable
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -329,8 +330,6 @@ location = /set2 {
 ]
 
 === multiple zone
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream1:1M;
@@ -400,8 +399,6 @@ location = /get2 {
 ]
 
 === ttl (1s)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- wait: 0.9
 --- post_main_config
 stream {
@@ -454,8 +451,6 @@ location = /set {
 ]
 
 === ttl (6s but with request within 5s)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- wait: 5
 --- post_main_config
 stream {
@@ -508,8 +503,6 @@ location = /set {
 ]
 
 === ttl (5s but with request within 5.1s)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- wait: 5.1
 --- post_main_config
 stream {
@@ -562,8 +555,6 @@ location = /set {
 ]
 
 === ttl (1m)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- init
 system "sleep 1"
 --- post_main_config
@@ -620,8 +611,6 @@ location = /set {
 ]
 
 === ttl (1h)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:5m ttl=1h;
@@ -676,8 +665,6 @@ location = /set {
 ]
 
 === timeout (1s)
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- wait: 0.9
 --- post_main_config
 stream {
@@ -730,8 +717,6 @@ location = /set {
 ]
 
 === conf not found keyval_zone
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval "stream_conf_not_found" $keyval_host zone=stream;
@@ -740,8 +725,6 @@ stream {
 --- must_die
 
 === conf not found zone parameter
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -751,8 +734,6 @@ stream {
 --- must_die
 
 === conf invalid zone parameter
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
@@ -762,8 +743,6 @@ stream {
 --- must_die
 
 === conf invalid ttl
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M ttl=e20s;
@@ -773,8 +752,6 @@ stream {
 --- must_die
 
 === conf invalid timeout
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M timeout=e20s;
@@ -784,8 +761,6 @@ stream {
 --- must_die
 
 === conf invalid duplicate ttl and timeout
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M timeout=10s ttl=10s;
@@ -795,8 +770,6 @@ stream {
 --- must_die
 
 === conf same keyval_zone for stream{} and http{}
---- skip_eval
-1: $ENV{"TEST_NGINX_LOAD_MODULES"} !~ /ngx_stream_keyval_module/
 --- post_main_config
 stream {
   keyval_zone zone=stream:1M;
