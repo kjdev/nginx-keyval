@@ -18,9 +18,8 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
     if (var->indexes->nelts != 0) {
         ngx_variable_value_t **v;
         ngx_int_t current_index = 0;
-        ngx_str_t string_var = var->key_string;
         ngx_uint_t size_string = 0;
-        u_char *last_space_available;
+        u_char *last_space_available, *p, *end;
 
         v = ngx_palloc(connection->pool,
                        sizeof(ngx_variable_value_t *) * var->indexes->nelts);
@@ -48,7 +47,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
 
         key->data = (u_char *) ngx_pnalloc(connection->pool,
                                            size_string
-                                           + (string_var.len -
+                                           + (var->key_string.len -
                                               var->indexes->nelts)
                                            + 1);
 
@@ -61,16 +60,18 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
         key->len = 0;
 
         last_space_available = key->data;
+        p = var->key_string.data;
+        end = p + var->key_string.len;
 
-        for ( ; *(string_var.data) != '\0' ; string_var.data++) {
-            if (*(string_var.data) == '$') {
+        for ( ; p < end; p++) {
+            if (*p == '$') {
                 last_space_available = ngx_cpystrn(last_space_available,
                                                    v[current_index]->data,
                                                    v[current_index]->len + 1);
                 key->len += v[current_index++]->len;
             } else {
-                *last_space_available = *(string_var.data);
-                last_space_available += sizeof(u_char);
+                *last_space_available = *p;
+                last_space_available++;
                 key->len++;
             }
         }
