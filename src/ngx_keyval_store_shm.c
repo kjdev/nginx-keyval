@@ -243,34 +243,38 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
         rc = NGX_OK;
 
         if (ctx->ttl) {
-            ngx_event_t *timeout_node_event
-                = ngx_slab_alloc_locked(ctx->shpool, sizeof(ngx_event_t));
+            ngx_event_t *timeout_node_event;
+            ngx_keyval_node_timeout_t *timeout_node;
 
+            timeout_node_event = ngx_slab_alloc_locked(ctx->shpool,
+                                                       sizeof(ngx_event_t));
             if (timeout_node_event == NULL) {
-                ngx_log_error(NGX_LOG_ERR, log, 0,
-                              "keyval: failed to allocate timeout event");
-                rc = NGX_ERROR;
-            } else {
-                ngx_keyval_node_timeout_t *timeout_node
-                    = ngx_slab_alloc_locked(ctx->shpool,
-                                            sizeof(ngx_keyval_node_timeout_t));
-
-                if (timeout_node == NULL) {
-                    ngx_log_error(NGX_LOG_ERR, log, 0,
-                                  "keyval: failed to allocate timeout node");
-                    rc = NGX_ERROR;
-                    ngx_slab_free_locked(ctx->shpool, timeout_node_event);
-                } else {
-                    timeout_node->node = node;
-                    timeout_node->ctx = ctx;
-
-                    timeout_node_event->data = (void *) timeout_node;
-                    timeout_node_event->handler =
-                        ngx_keyval_delete_timeout_node_shm;
-                    timeout_node_event->log = shm->shm.log;
-                    ngx_add_timer(timeout_node_event, ctx->ttl * 1000);
-                }
+                ngx_log_error(NGX_LOG_WARN, log, 0,
+                              "keyval: failed to allocate timeout event, "
+                              "entry will not expire");
+                goto ttl_done;
             }
+
+            timeout_node = ngx_slab_alloc_locked(ctx->shpool,
+                                     sizeof(ngx_keyval_node_timeout_t));
+            if (timeout_node == NULL) {
+                ngx_log_error(NGX_LOG_WARN, log, 0,
+                              "keyval: failed to allocate timeout node, "
+                              "entry will not expire");
+                ngx_slab_free_locked(ctx->shpool, timeout_node_event);
+                goto ttl_done;
+            }
+
+            timeout_node->node = node;
+            timeout_node->ctx = ctx;
+
+            timeout_node_event->data = (void *) timeout_node;
+            timeout_node_event->handler =
+                ngx_keyval_delete_timeout_node_shm;
+            timeout_node_event->log = shm->shm.log;
+            ngx_add_timer(timeout_node_event, ctx->ttl * 1000);
+
+        ttl_done: ;
         }
     }
 
