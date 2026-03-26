@@ -175,6 +175,15 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
 
     kv = (ngx_keyval_node_t *) &node->color;
 
+    if (kv->expires_at != 0
+        && (ngx_msec_int_t) (ngx_current_msec - kv->expires_at) >= 0)
+    {
+        ngx_rbtree_delete(&ctx->sh->rbtree, node);
+        ngx_slab_free_locked(ctx->shpool, node);
+        ngx_shmtx_unlock(&ctx->shpool->mutex);
+        return NGX_DECLINED;
+    }
+
     val->len = kv->size - kv->len;
     val->data = ngx_pnalloc(pool, val->len);
     if (val->data == NULL) {
@@ -186,24 +195,6 @@ ngx_keyval_shm_get_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
     ngx_shmtx_unlock(&ctx->shpool->mutex);
 
     return NGX_OK;
-}
-
-static void
-ngx_keyval_delete_timeout_node_shm(ngx_event_t *node_status)
-{
-    ngx_keyval_node_timeout_t *arg
-        = (ngx_keyval_node_timeout_t *) node_status->data;
-
-    if (arg->ctx->shpool != NULL && arg->node != NULL) {
-        ngx_shmtx_lock(&arg->ctx->shpool->mutex);
-
-        ngx_rbtree_delete(&arg->ctx->sh->rbtree, arg->node);
-        ngx_slab_free_locked(arg->ctx->shpool, arg->node);
-        ngx_slab_free_locked(arg->ctx->shpool, arg);
-        ngx_slab_free_locked(arg->ctx->shpool, node_status);
-
-        ngx_shmtx_unlock(&arg->ctx->shpool->mutex);
-    }
 }
 
 ngx_int_t
@@ -249,45 +240,11 @@ ngx_keyval_shm_set_data(ngx_keyval_shm_ctx_t *ctx, ngx_shm_zone_t *shm,
         ngx_memcpy(kv->data, key->data, key->len);
         ngx_memcpy(kv->data + key->len, val->data, val->len);
 
+        kv->expires_at = ctx->ttl ? (ngx_current_msec + ctx->ttl * 1000) : 0;
+
         ngx_rbtree_insert(&ctx->sh->rbtree, node);
 
         rc = NGX_OK;
-
-        if (ctx->ttl) {
-            ngx_event_t *timeout_node_event;
-            ngx_keyval_node_timeout_t *timeout_node;
-
-            timeout_node_event = ngx_slab_alloc_locked(ctx->shpool,
-                                                       sizeof(ngx_event_t));
-            if (timeout_node_event == NULL) {
-                ngx_log_error(NGX_LOG_WARN, log, 0,
-                              "keyval: failed to allocate timeout event, "
-                              "entry will not expire");
-                goto ttl_done;
-            }
-
-            timeout_node = ngx_slab_alloc_locked(ctx->shpool,
-                                                 sizeof(
-                                                     ngx_keyval_node_timeout_t));
-            if (timeout_node == NULL) {
-                ngx_log_error(NGX_LOG_WARN, log, 0,
-                              "keyval: failed to allocate timeout node, "
-                              "entry will not expire");
-                ngx_slab_free_locked(ctx->shpool, timeout_node_event);
-                goto ttl_done;
-            }
-
-            timeout_node->node = node;
-            timeout_node->ctx = ctx;
-
-            timeout_node_event->data = (void *) timeout_node;
-            timeout_node_event->handler =
-                ngx_keyval_delete_timeout_node_shm;
-            timeout_node_event->log = shm->shm.log;
-            ngx_add_timer(timeout_node_event, ctx->ttl * 1000);
-
-ttl_done:   ;
-        }
     }
 
     ngx_shmtx_unlock(&ctx->shpool->mutex);

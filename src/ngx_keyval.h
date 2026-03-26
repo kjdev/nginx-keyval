@@ -23,10 +23,11 @@ typedef struct {
 } ngx_keyval_conf_t;
 
 typedef struct {
-    u_char  color;
-    size_t  len;
-    size_t  size;
-    u_char  data[1];
+    u_char      color;
+    size_t      len;
+    size_t      size;
+    ngx_msec_t  expires_at;
+    u_char      data[1];
 } ngx_keyval_node_t;
 
 typedef struct {
@@ -39,11 +40,6 @@ typedef struct {
     ngx_slab_pool_t *shpool;
     time_t           ttl;
 } ngx_keyval_shm_ctx_t;
-
-typedef struct {
-    ngx_rbtree_node_t    *node;
-    ngx_keyval_shm_ctx_t *ctx;
-} ngx_keyval_node_timeout_t;
 
 typedef struct {
     u_char    *hostname;
