@@ -141,19 +141,11 @@ static ngx_int_t
 ngx_http_keyval_variable_init(ngx_http_request_t *r, uintptr_t data,
     ngx_str_t *key, ngx_keyval_zone_t **zone)
 {
-    ngx_keyval_conf_t *cf;
     ngx_keyval_variable_t *var;
 
     if (data == 0) {
         ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                       "keyval: rejected due to not handler data");
-        return NGX_ERROR;
-    }
-
-    cf = ngx_http_get_module_main_conf(r, ngx_http_keyval_module);
-    if (!cf) {
-        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                      "keyval: rejected due to not found main configuration");
         return NGX_ERROR;
     }
 

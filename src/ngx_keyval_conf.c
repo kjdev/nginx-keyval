@@ -13,7 +13,6 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 {
     ngx_str_t *value;
     int final_pos = 0;
-    int num_vars = 0;
     size_t size_buffer_variable_name = 0, size_buffer_intermediate_string = 0;
     u_char *string = NULL, *variable_name = NULL;
 
@@ -113,8 +112,6 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                 if (*index == NGX_ERROR) {
                     return "failed to get variable index";
                 }
-
-                num_vars++;
             } else {
                 (*var)->key_string.len++;
                 (*var)->key_string.data[final_pos++] = *string;

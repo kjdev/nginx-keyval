@@ -103,11 +103,9 @@ ngx_keyval_redis_get_data(redisContext *ctx, ngx_str_t *zone, ngx_str_t *key,
     if (resp->type == REDIS_REPLY_STRING) {
         u_char *str;
 
-        str = ngx_pnalloc(pool, resp->len + 1);
+        str = ngx_pnalloc(pool, resp->len);
         if (str) {
             ngx_memcpy(str, resp->str, resp->len);
-            str[resp->len] = '\0';
-
             val->data = str;
             val->len = resp->len;
 

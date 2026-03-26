@@ -140,19 +140,11 @@ static ngx_int_t
 ngx_stream_keyval_variable_init(ngx_stream_session_t *s, uintptr_t data,
     ngx_str_t *key, ngx_keyval_zone_t **zone)
 {
-    ngx_keyval_conf_t *cf;
     ngx_keyval_variable_t *var;
 
     if (data == 0) {
         ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
                       "keyval: rejected due to not handler data");
-        return NGX_ERROR;
-    }
-
-    cf = ngx_stream_get_module_main_conf(s, ngx_stream_keyval_module);
-    if (!cf) {
-        ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
-                      "keyval: rejected due to not found main configuration");
         return NGX_ERROR;
     }
 
