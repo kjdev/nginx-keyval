@@ -1,68 +1,61 @@
 # syntax=docker/dockerfile:1
 
-ARG ALPINE_VERSION=3.21
+FROM nginx:alpine AS nginx
 
-FROM alpine:${ALPINE_VERSION} AS nginx
-
-### builder ###
+# [builder]
 FROM nginx AS builder
 
-ENV NGX_HTTP_KEYVAL_ZONE_REDIS=1
+ENV NGX_KEYVAL_ZONE_REDIS=1
 
 WORKDIR /build
-RUN apk --no-cache upgrade \
- && apk --no-cache add \
-      curl \
-      gcc \
-      gd-dev \
-      geoip-dev \
-      hiredis-dev \
-      libxslt-dev \
-      linux-headers \
-      make \
-      musl-dev \
-      nginx \
-      openssl-dev \
-      pcre-dev \
-      perl-dev \
-      zlib-dev \
- && nginx_version=$(nginx -v 2>&1 | sed 's/^[^0-9]*//') \
- && curl -sL -o nginx-${nginx_version}.tar.gz http://nginx.org/download/nginx-${nginx_version}.tar.gz \
- && tar -xf nginx-${nginx_version}.tar.gz \
- && mv nginx-${nginx_version} nginx
+RUN --mount=type=cache,target=/var/cache/apk sh -ex <<'EOS'
+apk add \
+  curl \
+  gcc \
+  gd-dev \
+  geoip-dev \
+  hiredis-dev \
+  libxslt-dev \
+  linux-headers \
+  make \
+  musl-dev \
+  openssl-dev \
+  pcre2-dev \
+  perl-dev \
+  zlib-dev
+nginx_version=$(nginx -v 2>&1 | sed 's/^[^0-9]*//')
+curl -sL -o nginx-${nginx_version}.tar.gz https://nginx.org/download/nginx-${nginx_version}.tar.gz
+tar -xf nginx-${nginx_version}.tar.gz
+mv nginx-${nginx_version} nginx
+EOS
 
 COPY config /build/
 COPY src/ /build/src/
 
 WORKDIR /build/nginx
-RUN nginx_opt=$(nginx -V 2>&1 | tail -1 | sed -e "s/configure arguments://" -e "s| --add-dynamic-module=[^ ]*||g") \
- && ./configure \
-      ${nginx_opt} \
-      --add-dynamic-module=../ \
-      --with-cc-opt='-DNGX_HTTP_HEADERS' \
- && make \
- && mkdir -p /usr/lib/nginx/modules \
- && cp objs/ngx_http_keyval_module.so /usr/lib/nginx/modules/ \
- && mkdir -p /etc/nginx/modules \
- && echo 'load_module "/usr/lib/nginx/modules/ngx_http_keyval_module.so";' > /etc/nginx/modules/keyval.conf \
- && nginx -t
+RUN sh -ex <<'EOS'
+opt=$(nginx -V 2>&1 | tail -1 | sed -e 's/configure arguments://' -e 's| --add-dynamic-module=[^ ]*||g')
+with_cc_opt=$(echo "${opt}" | grep -e "--with-cc-opt='[^']*'" -o | sed -e "s/^--with-cc-opt='//" -e "s/'$//")
+with_ld_opt=$(echo "${opt}" | grep -e "--with-ld-opt='[^']*'" -o | sed -e "s/^--with-ld-opt='//" -e "s/'$//")
+opt=$(echo "${opt}" | sed -e "s|--with-cc-opt='[^']*'||" -e "s|--with-ld-opt='[^']*'||" -e 's/--without-engine//')
+./configure \
+  ${opt} \
+  --with-cc-opt="${with_cc_opt} -DNGX_HTTP_HEADERS" \
+  --with-ld-opt="${with_ld_opt}" \
+  --add-dynamic-module=..
+make modules
+cp objs/ngx_http_keyval_module.so /usr/lib/nginx/modules/
+cp objs/ngx_stream_keyval_module.so /usr/lib/nginx/modules/
+EOS
 
+# [nginx]
+FROM nginx AS module
 
-### nginx ###
-FROM nginx
-
-RUN apk --no-cache upgrade \
- && apk --no-cache add \
-      hiredis \
-      nginx \
- && sed \
-      -e 's/^user /#user /' \
-      -e 's@^error_log .*$@error_log /dev/stderr warn;@' \
-      -e 's@access_log .*;$@access_log /dev/stdout main;@' \
-      -i /etc/nginx/nginx.conf
+RUN --mount=type=cache,target=/var/cache/apk sh -ex <<'EOS'
+apk add hiredis
+# load module: ngx_http_keyval_module.so
+sed -i '/events {/i load_module "/usr/lib/nginx/modules/ngx_http_keyval_module.so";' /etc/nginx/nginx.conf
+EOS
 
 COPY --from=builder /usr/lib/nginx/modules/ngx_http_keyval_module.so /usr/lib/nginx/modules/ngx_http_keyval_module.so
-COPY --from=builder /etc/nginx/modules/keyval.conf /etc/nginx/modules/keyval.conf
-
-USER nginx
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=builder /usr/lib/nginx/modules/ngx_stream_keyval_module.so /usr/lib/nginx/modules/ngx_stream_keyval_module.so
