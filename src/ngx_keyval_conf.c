@@ -60,66 +60,68 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
         return "failed to allocate";
     }
 
-    string = value[1].data;
-
-    (*var)->key_string.len = 0;
-    (*var)->key_string.data = ngx_pnalloc(cf->pool,
-                                          size_buffer_intermediate_string);
-    if ((*var)->key_string.data == NULL) {
-        return "failed to allocate memory for intermediate string";
-    }
-
-    variable_name = ngx_pnalloc(cf->pool, size_buffer_variable_name);
-    if (variable_name == NULL) {
-        return "failed to allocate memory for variable name buffer";
-    }
-
-    while (*string != '\0') {
-        if (*string == '$') {
-            int variable_name_str_index = 0;
-            ngx_int_t *index;
-            ngx_str_t str;
-
-            (*var)->key_string.data[final_pos++] = '$';
-            (*var)->key_string.len++;
-            string++;
-
-            while (*string != '\0'
-                   && ((*string >= 'A' && *string <= 'Z')
-                       || (*string >= 'a' && *string <= 'z')
-                       || (*string >= '0' && *string <= '9')
-                       || *string == '_'))
-            {
-                variable_name[variable_name_str_index] = *string;
-                variable_name_str_index++;
-                string++;
-            }
-
-            variable_name[variable_name_str_index] = '\0';
-
-            str.data = variable_name;
-            str.len = ngx_strlen(variable_name);
-
-            index = ngx_array_push((*var)->indexes);
-            if (index == NULL) {
-                return "failed to allocate item";
-            }
-            *index = get_variable_index(cf, &str);
-            if (*index == NGX_ERROR) {
-                return "failed to get variable index";
-            }
-
-            num_vars++;
-        } else {
-            (*var)->key_string.len++;
-            (*var)->key_string.data[final_pos++] = *string;
-            string++;
-        }
-    }
-
-    if (num_vars == 0) {
+    if (ngx_strlchr(value[1].data, value[1].data + value[1].len, '$')
+        == NULL)
+    {
         (*var)->key_string = value[1];
     } else {
+        string = value[1].data;
+
+        (*var)->key_string.len = 0;
+        (*var)->key_string.data = ngx_pnalloc(cf->pool,
+                                              size_buffer_intermediate_string);
+        if ((*var)->key_string.data == NULL) {
+            return "failed to allocate memory for intermediate string";
+        }
+
+        variable_name = ngx_pnalloc(cf->pool, size_buffer_variable_name);
+        if (variable_name == NULL) {
+            return "failed to allocate memory for variable name buffer";
+        }
+
+        while (*string != '\0') {
+            if (*string == '$') {
+                int variable_name_str_index = 0;
+                ngx_int_t *index;
+                ngx_str_t str;
+
+                (*var)->key_string.data[final_pos++] = '$';
+                (*var)->key_string.len++;
+                string++;
+
+                while (*string != '\0'
+                       && ((*string >= 'A' && *string <= 'Z')
+                           || (*string >= 'a' && *string <= 'z')
+                           || (*string >= '0' && *string <= '9')
+                           || *string == '_'))
+                {
+                    variable_name[variable_name_str_index] = *string;
+                    variable_name_str_index++;
+                    string++;
+                }
+
+                variable_name[variable_name_str_index] = '\0';
+
+                str.data = variable_name;
+                str.len = ngx_strlen(variable_name);
+
+                index = ngx_array_push((*var)->indexes);
+                if (index == NULL) {
+                    return "failed to allocate item";
+                }
+                *index = get_variable_index(cf, &str);
+                if (*index == NGX_ERROR) {
+                    return "failed to get variable index";
+                }
+
+                num_vars++;
+            } else {
+                (*var)->key_string.len++;
+                (*var)->key_string.data[final_pos++] = *string;
+                string++;
+            }
+        }
+
         (*var)->key_string.data[final_pos] = '\0';
     }
 
