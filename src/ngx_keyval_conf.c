@@ -56,6 +56,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
     (*var)->indexes = ngx_array_create(cf->pool, 4, sizeof(ngx_int_t));
     if ((*var)->indexes == NULL) {
+        config->variables->nelts--;
         return "failed to allocate";
     }
 
@@ -70,11 +71,13 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
         (*var)->key_string.data = ngx_pnalloc(cf->pool,
                                               size_buffer_intermediate_string);
         if ((*var)->key_string.data == NULL) {
+            config->variables->nelts--;
             return "failed to allocate memory for intermediate string";
         }
 
         variable_name = ngx_pnalloc(cf->pool, size_buffer_variable_name);
         if (variable_name == NULL) {
+            config->variables->nelts--;
             return "failed to allocate memory for variable name buffer";
         }
 
@@ -106,10 +109,12 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
                 index = ngx_array_push((*var)->indexes);
                 if (index == NULL) {
+                    config->variables->nelts--;
                     return "failed to allocate item";
                 }
                 *index = get_variable_index(cf, &str);
                 if (*index == NGX_ERROR) {
+                    config->variables->nelts--;
                     return "failed to get variable index";
                 }
             } else {
@@ -126,15 +131,18 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
     (*var)->zone = ngx_keyval_conf_zone_get(cf, cmd, config, &value[3]);
     if ((*var)->zone == NULL) {
+        config->variables->nelts--;
         return "zone not found";
     }
 
     if ((*var)->zone->type == NGX_KEYVAL_ZONE_SHM) {
         (*var)->zone->shm = ngx_shared_memory_add(cf, &value[3], 0, tag);
         if ((*var)->zone->shm == NULL) {
+            config->variables->nelts--;
             return "failed to allocate shared memory";
         }
     } else if ((*var)->zone->type != NGX_KEYVAL_ZONE_REDIS) {
+        config->variables->nelts--;
         return "invalid zone type";
     }
 

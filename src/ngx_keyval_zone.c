@@ -38,7 +38,8 @@ ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
 
     if (!conf) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "\"%V\" failed to get main configuration", &cmd->name);
+                           "\"%V\" failed to get main configuration",
+                           &cmd->name);
         return NULL;
     }
 
