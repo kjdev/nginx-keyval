@@ -106,8 +106,8 @@ char *ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd,
 void *ngx_keyval_create_main_conf(ngx_conf_t *cf);
 
 /* ngx_keyval_variable.c */
-ngx_int_t ngx_keyval_variable_get_key(ngx_connection_t *connection,
-    ngx_keyval_variable_t *var, ngx_str_t *key,
+ngx_int_t ngx_keyval_variable_get_key(ngx_pool_t *pool,
+    ngx_connection_t *connection, ngx_keyval_variable_t *var, ngx_str_t *key,
     ngx_keyval_get_index_variable get_index_variable, void *data);
 
 /* ngx_keyval_store.c */

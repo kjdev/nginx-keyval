@@ -6,12 +6,12 @@
 #include "ngx_keyval.h"
 
 ngx_int_t
-ngx_keyval_variable_get_key(ngx_connection_t *connection,
+ngx_keyval_variable_get_key(ngx_pool_t *pool, ngx_connection_t *connection,
     ngx_keyval_variable_t *var, ngx_str_t *key,
     ngx_keyval_get_index_variable get_index_variable,
     void *data)
 {
-    if (!key || !var || !connection || !data) {
+    if (!key || !var || !pool || !connection || !data) {
         return NGX_ERROR;
     }
 
@@ -21,7 +21,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
         ngx_uint_t size_string = 0;
         u_char *last_space_available, *p, *end;
 
-        v = ngx_palloc(connection->pool,
+        v = ngx_palloc(pool,
                        sizeof(ngx_variable_value_t *) * var->indexes->nelts);
 
         if (v == NULL) {
@@ -45,7 +45,7 @@ ngx_keyval_variable_get_key(ngx_connection_t *connection,
             size_string += v[i]->len;
         }
 
-        key->data = (u_char *) ngx_pnalloc(connection->pool,
+        key->data = (u_char *) ngx_pnalloc(pool,
                                            size_string
                                            + (var->key_string.len -
                                               var->indexes->nelts)
