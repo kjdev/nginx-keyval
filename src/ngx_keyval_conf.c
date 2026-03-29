@@ -29,13 +29,13 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
         return "is empty";
     }
 
-    if (value[2].data[0] != '$') {
+    if (value[2].len < 2 || value[2].data[0] != '$') {
         return "not a variable specified";
     }
     value[2].data++;
     value[2].len--;
 
-    if (ngx_strncmp(value[3].data, "zone=", 5) != 0) {
+    if (value[3].len < 6 || ngx_strncmp(value[3].data, "zone=", 5) != 0) {
         return "not a zone specified";
     }
     value[3].data += 5;
@@ -65,7 +65,10 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     {
         (*var)->key_string = value[1];
     } else {
+        u_char *string_end;
+
         string = value[1].data;
+        string_end = value[1].data + value[1].len;
 
         (*var)->key_string.len = 0;
         (*var)->key_string.data = ngx_pnalloc(cf->pool,
@@ -81,7 +84,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
             return "failed to allocate memory for variable name buffer";
         }
 
-        while (*string != '\0') {
+        while (string < string_end) {
             if (*string == '$') {
                 int variable_name_str_index = 0;
                 ngx_int_t *index;
@@ -91,7 +94,7 @@ ngx_keyval_conf_set_variable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
                 (*var)->key_string.len++;
                 string++;
 
-                while (*string != '\0'
+                while (string < string_end
                        && ((*string >= 'A' && *string <= 'Z')
                            || (*string >= 'a' && *string <= 'z')
                            || (*string >= '0' && *string <= '9')
