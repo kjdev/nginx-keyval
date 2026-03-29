@@ -65,6 +65,12 @@ ngx_keyval_variable_get_key(ngx_pool_t *pool, ngx_connection_t *connection,
 
         for ( ; p < end; p++) {
             if (*p == '$') {
+                if (current_index >= (ngx_int_t) var->indexes->nelts) {
+                    ngx_log_error(NGX_LOG_ERR, connection->log, 0,
+                                  "keyval: key_string has more $ "
+                                  "than indexes");
+                    return NGX_ERROR;
+                }
                 last_space_available = ngx_cpystrn(last_space_available,
                                                    v[current_index]->data,
                                                    v[current_index]->len + 1);
