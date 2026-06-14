@@ -45,15 +45,19 @@ ngx_keyval_store_ops_t ngx_keyval_store_shm_ops = {
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 
 static ngx_keyval_redis_ctx_t *
-ngx_keyval_store_redis_get_ctx(ngx_pool_t *pool, ngx_log_t *log)
+ngx_keyval_store_redis_get_ctx(ngx_keyval_zone_t *zone, ngx_pool_t *pool,
+    ngx_log_t *log)
 {
     ngx_pool_cleanup_t *cln;
     ngx_keyval_redis_ctx_t *ctx;
 
-    /* find existing Redis ctx registered on this pool */
+    /* find existing Redis ctx for this zone registered on this pool */
     for (cln = pool->cleanup; cln; cln = cln->next) {
         if (cln->handler == ngx_keyval_redis_cleanup_ctx) {
-            return cln->data;
+            ctx = cln->data;
+            if (ctx->zone == zone) {
+                return ctx;
+            }
         }
     }
 
@@ -64,6 +68,7 @@ ngx_keyval_store_redis_get_ctx(ngx_pool_t *pool, ngx_log_t *log)
                       "keyval: failed to allocate redis context");
         return NULL;
     }
+    ctx->zone = zone;
 
     cln = ngx_pool_cleanup_add(pool, 0);
     if (cln == NULL) {
@@ -85,7 +90,7 @@ ngx_keyval_store_redis_get(ngx_keyval_zone_t *zone, ngx_str_t *key,
     ngx_keyval_redis_ctx_t *ctx;
     redisContext *context;
 
-    ctx = ngx_keyval_store_redis_get_ctx(pool, log);
+    ctx = ngx_keyval_store_redis_get_ctx(zone, pool, log);
     if (ctx == NULL) {
         return NGX_ERROR;
     }
@@ -106,7 +111,7 @@ ngx_keyval_store_redis_set(ngx_keyval_zone_t *zone, ngx_str_t *key,
     ngx_keyval_redis_ctx_t *ctx;
     redisContext *context;
 
-    ctx = ngx_keyval_store_redis_get_ctx(pool, log);
+    ctx = ngx_keyval_store_redis_get_ctx(zone, pool, log);
     if (ctx == NULL) {
         return;
     }

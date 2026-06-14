@@ -77,7 +77,8 @@ typedef struct {
 
 #if (NGX_HAVE_KEYVAL_ZONE_REDIS)
 typedef struct {
-    redisContext *redis;
+    ngx_keyval_zone_t *zone;
+    redisContext      *redis;
 } ngx_keyval_redis_ctx_t;
 #endif
 
