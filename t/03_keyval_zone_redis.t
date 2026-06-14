@@ -246,6 +246,45 @@ location = /set2 {
   "/get(key): 1:test1 2:test2\n"
 ]
 
+=== multiple zone (different database)
+--- init
+system "redis-cli flushall"
+--- http_config
+keyval_zone_redis zone=mzdb0 database=0 ttl=30s;
+keyval_zone_redis zone=mzdb1 database=1 ttl=30s;
+keyval $cookie_data_key $keyval_data0 zone=mzdb0;
+keyval $cookie_data_key $keyval_data1 zone=mzdb1;
+--- config
+location = /set {
+  set $keyval_data0 "db0";
+  set $keyval_data1 "db1";
+  return 200 "set\n";
+}
+location = /get0 {
+  return 200 "$keyval_data0\n";
+}
+location = /get1 {
+  return 200 "$keyval_data1\n";
+}
+--- request eval
+[
+  "GET /set",
+  "GET /get0",
+  "GET /get1"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "set\n",
+  "db0\n",
+  "db1\n"
+]
+
 === keep set
 --- http_config
 keyval_zone_redis zone=keep ttl=300s;
