@@ -456,6 +456,31 @@ location = /set {
   "/get(key): \n"
 ]
 
+=== binary key containing NUL bytes
+--- http_config
+keyval_zone zone=binkey:1M;
+keyval $binary_remote_addr $keyval_data zone=binkey;
+--- config
+location = /get {
+  return 200 "$request_uri: $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "binval";
+  return 200 "$request_uri: $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- response_body eval
+[
+  "/get: \n",
+  "/set: binval\n",
+  "/get: binval\n"
+]
+
 === conf not found keyval_zone
 --- http_config
 keyval $cookie_data_key $keyval_data zone=test;
