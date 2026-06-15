@@ -71,9 +71,9 @@ ngx_keyval_variable_get_key(ngx_pool_t *pool, ngx_connection_t *connection,
                                   "than indexes");
                     return NGX_ERROR;
                 }
-                last_space_available = ngx_cpystrn(last_space_available,
-                                                   v[current_index]->data,
-                                                   v[current_index]->len + 1);
+                last_space_available = ngx_cpymem(last_space_available,
+                                                  v[current_index]->data,
+                                                  v[current_index]->len);
                 key->len += v[current_index++]->len;
             } else {
                 *last_space_available = *p;
