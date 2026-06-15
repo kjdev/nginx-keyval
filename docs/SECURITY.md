@@ -31,6 +31,25 @@ When using the Redis backend, data is transmitted over the network.
   - TLS proxy feature in Redis 6 and later
 - If Redis AUTH (`requirepass`) is enabled, a proxy that handles authentication is also required, as this module does not send AUTH commands
 
+### Blocking I/O DoS Risk
+
+This module uses the hiredis synchronous API and sends/receives commands to
+Redis in a blocking manner during request processing. Against a Redis that is
+unresponsive, extremely slow, or behind a half-open network (TCP established
+but no packets returned), the nginx worker process can stall along with its
+entire event loop unless a bound is set. All other connections handled by that
+worker are dragged down with it, so a Redis-side failure can escalate into a
+service outage (DoS) for nginx as a whole.
+
+**Recommendations:**
+
+- Set both `connect_timeout` (connection establishment) and `command_timeout`
+  (command send/receive) according to your requirements. Both default to `3s`.
+- For unstable networks or remote Redis, set `command_timeout` as low as the
+  acceptable response-latency ceiling allows.
+- When a timeout occurs, the Redis connection for that request enters an error
+  state and is not reused (it is reconnected on the next request).
+
 ## Key Design Best Practices
 
 Improper key design can lead to security risks.

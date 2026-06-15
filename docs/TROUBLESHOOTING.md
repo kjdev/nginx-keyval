@@ -113,7 +113,7 @@ invalid parameter "xxx"
 Check the spelling of the parameter. Valid parameters:
 
 - `keyval_zone`: `zone=name:size`, `ttl=time`, `timeout=time`
-- `keyval_zone_redis`: `zone=name`, `hostname=addr`, `port=num`, `database=num`, `connect_timeout=time`, `ttl=time`
+- `keyval_zone_redis`: `zone=name`, `hostname=addr`, `port=num`, `database=num`, `connect_timeout=time`, `command_timeout=time`, `ttl=time`
 
 ### zone not found
 

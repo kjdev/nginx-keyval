@@ -95,7 +95,7 @@ keyval_zone zone=session:1m ttl=1h;   # Expires after 1 hour
 ### keyval_zone_redis
 
 ```
-Syntax:  keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [ttl=time];
+Syntax:  keyval_zone_redis zone=name [hostname=name] [port=number] [database=number] [connect_timeout=time] [command_timeout=time] [ttl=time];
 Default: --
 Context: http, stream
 ```
@@ -113,7 +113,16 @@ Defines the name and connection settings for a Redis zone that holds the key-val
 | `port=number` | No | `6379` | Redis server port number |
 | `database=number` | No | `0` | Redis database number |
 | `connect_timeout=time` | No | `3s` | Redis connection timeout |
+| `command_timeout=time` | No | `3s` | Redis command (send/receive) timeout |
 | `ttl=time` | No | `0` (no expiration) | Expiration time for key-value pairs |
+
+#### Timeout Behavior
+
+`connect_timeout` bounds the time to establish the TCP connection to Redis. `command_timeout` bounds the send/receive of each command (`SELECT`/`GET`/`SET`/`SETEX`) after the connection is established, and is applied as the socket send/receive timeout via `redisSetTimeout()`.
+
+Because this module uses the hiredis synchronous API, without `command_timeout` the worker process can block indefinitely against a Redis that is unresponsive, extremely slow, or behind a half-open network. When a timeout occurs, the Redis connection for that request enters an error state and is not reused. See [SECURITY.md](SECURITY.md) for details.
+
+`command_timeout` may not be set to `0` (since `0` disables the blocking bound and defeats the purpose of the parameter, it is rejected as a configuration error). The minimum unit is 1 second; a sub-second value such as `500ms` is rounded down to `0` and rejected as a configuration error.
 
 #### TTL Behavior
 
@@ -131,6 +140,7 @@ keyval_zone_redis zone=kv_remote
                   port=6380
                   database=1
                   connect_timeout=5s
+                  command_timeout=2s
                   ttl=1h;
 ```
 
