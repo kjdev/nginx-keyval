@@ -246,6 +246,7 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     zone->redis.db = 0;
     zone->redis.ttl = 0;
     zone->redis.connect_timeout = 3;
+    zone->redis.command_timeout = 3;
 
     for (i = 2; i < cf->args->nelts; i++) {
         if (ngx_strncmp(value[i].data, "hostname=",
@@ -313,6 +314,26 @@ ngx_keyval_conf_set_zone_redis(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
             if (zone->redis.connect_timeout == (time_t) NGX_ERROR) {
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                    "\"%V\" invalid connect timeout \"%V\"",
+                                   &cmd->name, &value[i]);
+                return NGX_CONF_ERROR;
+            }
+            continue;
+        }
+
+        if (ngx_strncmp(value[i].data, "command_timeout=", 16) == 0
+            && value[i].len > 16)
+        {
+            ngx_str_t s;
+
+            s.len = value[i].len - 16;
+            s.data = value[i].data + 16;
+
+            zone->redis.command_timeout = ngx_parse_time(&s, 1);
+            if (zone->redis.command_timeout == (time_t) NGX_ERROR
+                || zone->redis.command_timeout == 0)
+            {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "\"%V\" invalid command timeout \"%V\"",
                                    &cmd->name, &value[i]);
                 return NGX_CONF_ERROR;
             }

@@ -47,6 +47,7 @@ typedef struct {
     ngx_int_t  db;
     time_t     ttl;
     time_t     connect_timeout;
+    time_t     command_timeout;
 } ngx_keyval_redis_conf_t;
 
 /* Forward declaration for store ops */

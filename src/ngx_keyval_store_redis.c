@@ -55,6 +55,19 @@ ngx_keyval_redis_get_context(ngx_keyval_redis_ctx_t *ctx,
         return NULL;
     }
 
+    timeout.tv_sec = conf->command_timeout;
+    if (redisSetTimeout(ctx->redis, timeout) != REDIS_OK) {
+        ngx_log_error(NGX_LOG_ERR, log, 0,
+                      "keyval: failed to set redis command timeout: "
+                      "hostname=%s port=%d command_timeout=%ds: %s",
+                      (char *) conf->hostname, conf->port,
+                      conf->command_timeout,
+                      ctx->redis->errstr);
+        redisFree(ctx->redis);
+        ctx->redis = NULL;
+        return NULL;
+    }
+
     if (conf->db > 0) {
         redisReply *resp = NULL;
 
