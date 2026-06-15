@@ -681,6 +681,37 @@ location = /set {
   "/get(key): test1h\n"
 ]
 
+=== command_timeout (1s)
+--- http_config
+keyval_zone_redis zone=cmdtimeout command_timeout=1s;
+keyval $cookie_data_key $keyval_data zone=cmdtimeout;
+--- config
+location = /get {
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+location = /set {
+  set $keyval_data "testcmd";
+  return 200 "$request_uri($cookie_data_key): $keyval_data\n";
+}
+--- request eval
+[
+  "GET /get",
+  "GET /set",
+  "GET /get"
+]
+--- more_headers eval
+[
+  "Cookie: data_key=key",
+  "Cookie: data_key=key",
+  "Cookie: data_key=key"
+]
+--- response_body eval
+[
+  "/get(key): \n",
+  "/set(key): testcmd\n",
+  "/get(key): testcmd\n"
+]
+
 === conf not found keyval_zone_redis
 --- http_config
 keyval $cookie_data_key $keyval_data zone=invalid;
@@ -720,6 +751,27 @@ keyval $cookie_data_key $keyval_data zone=invalid;
 === conf redis invalid ttl
 --- http_config
 keyval_zone_redis zone=test ttl=abc;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf redis invalid command_timeout
+--- http_config
+keyval_zone_redis zone=test command_timeout=abc;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf redis zero command_timeout
+--- http_config
+keyval_zone_redis zone=test command_timeout=0;
+keyval $cookie_data_key $keyval_data zone=test;
+--- config
+--- must_die
+
+=== conf redis sub-second command_timeout
+--- http_config
+keyval_zone_redis zone=test command_timeout=500ms;
 keyval $cookie_data_key $keyval_data zone=test;
 --- config
 --- must_die
