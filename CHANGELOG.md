@@ -1,5 +1,11 @@
 # Changelog
 
+## [5850601](../../commit/5850601) - 2026-06-15
+
+### Fixed
+
+- Use `ngx_cpymem` when building variable keys so that values containing NUL bytes (e.g. `$binary_remote_addr`) are copied in full, preventing uninitialized pool memory from leaking into stored/transmitted keys and breaking get/set lookups
+
 ## [fdc4294](../../commit/fdc4294) - 2026-06-15
 
 ### Fixed
