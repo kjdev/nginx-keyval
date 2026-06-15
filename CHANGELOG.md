@@ -1,5 +1,11 @@
 # Changelog
 
+## [fdc4294](../../commit/fdc4294) - 2026-06-15
+
+### Fixed
+
+- Isolate Redis connection context per zone so that multiple `keyval_zone_redis` zones with different hostname/port/database accessed in the same request no longer reuse the first zone's connection
+
 ## [172ac41](../../commit/172ac41) - 2026-03-27
 
 ### Changed
