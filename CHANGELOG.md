@@ -1,5 +1,11 @@
 # Changelog
 
+## [b3a3223](../../commit/b3a3223) - 2026-06-15
+
+### Added
+
+- `command_timeout=` parameter for `keyval_zone_redis` (default `3s`) that bounds the send/receive of each Redis command (SELECT/GET/SET/SETEX) via `redisSetTimeout`. Previously only the connection timeout was configured, leaving command round-trips unbounded, so an unresponsive, extremely slow, or half-open Redis could block the nginx worker process and its entire event loop indefinitely, escalating into a worker-wide DoS
+
 ## [5850601](../../commit/5850601) - 2026-06-15
 
 ### Fixed
