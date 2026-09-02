@@ -186,7 +186,7 @@ jobs:
           - alpine
           - ubuntu
           - '1.30.4' # stable
-          - '1.31.3' # mainline
+          - '1.31.4' # mainline
         optional:
           - ''
           - 'redis'
