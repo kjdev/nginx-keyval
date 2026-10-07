@@ -5,6 +5,10 @@
 
 #include "ngx_keyval.h"
 
+
+#define NGX_KEYVAL_STORE_VERSION "1"
+#define NGX_KEYVAL_SHM_SIGNATURE "keyval-store:" NGX_KEYVAL_STORE_VERSION
+
 ngx_keyval_zone_t *
 ngx_keyval_conf_zone_get(ngx_conf_t *cf, ngx_command_t *cmd,
     ngx_keyval_conf_t *conf, ngx_str_t *name)
@@ -66,6 +70,8 @@ ngx_keyval_conf_zone_add(ngx_conf_t *cf, ngx_command_t *cmd,
         return NULL;
     }
 
+    ngx_memzero(zone, sizeof(*zone));
+
     zone->name = *name;
     zone->type = type;
 
@@ -76,12 +82,12 @@ char *
 ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
     ngx_keyval_conf_t *config, void *tag)
 {
-    ssize_t size;
     ngx_uint_t i;
     ngx_shm_zone_t *shm_zone;
-    ngx_str_t name, *value;
+    ngx_str_t *value, tmp;
     ngx_keyval_shm_ctx_t *ctx;
     ngx_keyval_zone_t *zone;
+    ngx_shm_zone_params_t   zp;
 
     if (!config || !tag) {
         return "missing required parameter";
@@ -89,49 +95,34 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
 
     value = cf->args->elts;
 
-    size = 0;
-    name.len = 0;
+    ngx_memzero(&zp, sizeof(ngx_shm_zone_params_t));
+    zp.min_size = 8 * ngx_pagesize;
+    zp.size = NGX_CONF_UNSET;
+    zp.restorable = 1;
+    zp.tag = tag;
+
+    zp.signature.len = sizeof(NGX_KEYVAL_SHM_SIGNATURE)-1;
+    zp.signature.data = ngx_pnalloc(cf->pool, zp.signature.len+1);
+    if (zp.signature.data == NULL) {
+        return NGX_CONF_ERROR;
+    }
+    memcpy(zp.signature.data, NGX_KEYVAL_SHM_SIGNATURE, zp.signature.len+1);
 
     if (ngx_strncmp(value[1].data, "zone=", 5) == 0) {
-        u_char *p;
-        ngx_str_t s;
 
-        name.data = value[1].data + 5;
-        p = (u_char *) ngx_strchr(name.data, ':');
-        if (p == NULL) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "\"%V\" invalid zone size \"%V\"",
-                               &cmd->name, &value[1]);
-            return NGX_CONF_ERROR;
-        }
+        tmp.data = value[1].data + 5;
+        tmp.len = value[1].len - 5;
 
-        name.len = p - name.data;
-
-        s.data = p + 1;
-        s.len = value[1].data + value[1].len - s.data;
-
-        size = ngx_parse_size(&s);
-
-        if (size == NGX_ERROR) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "\"%V\" invalid zone size \"%V\"",
-                               &cmd->name, &value[1]);
-            return NGX_CONF_ERROR;
-        }
-
-        if (size < (ssize_t) (8 * ngx_pagesize)) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "\"%V\" zone \"%V\" is too small",
-                               &cmd->name, &value[1]);
+        if (ngx_conf_parse_zone_spec(cf, &zp, &tmp) != NGX_OK) {
             return NGX_CONF_ERROR;
         }
     }
 
-    if (name.len == 0) {
+    if (zp.name.len == 0 || zp.size == 0) {
         return "must have \"zone\" parameter";
     }
 
-    zone = ngx_keyval_conf_zone_add(cf, cmd, config, &name,
+    zone = ngx_keyval_conf_zone_add(cf, cmd, config, &zp.name,
                                     NGX_KEYVAL_ZONE_SHM);
     if (zone == NULL) {
         return NGX_CONF_ERROR;
@@ -144,16 +135,18 @@ ngx_keyval_conf_set_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf,
         return "failed to allocate";
     }
 
-    shm_zone = ngx_shared_memory_add(cf, &name, size, tag);
+    shm_zone = ngx_shared_memory_add_ext(cf, &zp);
     if (shm_zone == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                            "\"%V\" failed to allocate memory or \"%V\" is already",
-                           &cmd->name, &name);
+                           &cmd->name, &zp.name);
         return NGX_CONF_ERROR;
     }
 
     shm_zone->init = ngx_keyval_init_zone;
     shm_zone->data = ctx;
+
+    zone->shm = shm_zone;
 
     ctx->ttl = 0;
 
