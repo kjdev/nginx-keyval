@@ -22,9 +22,10 @@ jobs:
     permissions:
       contents: read
       packages: read
+    name: test (${{ matrix.optional != '' && format('{0}, {1}', matrix.nginx.label, matrix.optional) || matrix.nginx.label }})
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ matrix.nginx != 'alpine' }}
+      - if: ${{ matrix.nginx.version != 'alpine' }}
         name: Set up step
         run: |
           sudo apt-get update
@@ -44,13 +45,13 @@ jobs:
           fi
           sudo cpanm -n Test::Nginx
         env:
-          nginx_version: ${{ matrix.nginx }}
+          nginx_version: ${{ matrix.nginx.version }}
           nginx_optional: ${{ matrix.optional }}
           DEBIAN_FRONTEND: noninteractive
           PERL_MM_OPT: ''
           PERL_MM_USE_DEFAULT: 1
           PERL5LIB: ''
-      - if: ${{ matrix.nginx == 'alpine' }}
+      - if: ${{ matrix.nginx.version == 'alpine' }}
         name: Set up step with Alpine
         run: |
           apk upgrade
@@ -87,7 +88,7 @@ jobs:
           persist-credentials: false
           set-safe-directory: true
           token: ${{ github.token }}
-      - if: ${{ matrix.nginx == 'ubuntu' || matrix.nginx == 'alpine' }}
+      - if: ${{ matrix.nginx.version == 'ubuntu' || matrix.nginx.version == 'alpine' }}
         name: Build with distribution
         run: |
           if [ "${nginx_optional}" = "redis" ]; then
@@ -122,9 +123,9 @@ jobs:
           ${sudo} mkdir -p /usr/local/sbin
           ${sudo} ln -sfn /usr/sbin/nginx /usr/local/sbin/nginx
         env:
-          dist: ${{ matrix.nginx }}
+          dist: ${{ matrix.nginx.version }}
           nginx_optional: ${{ matrix.optional }}
-      - if: ${{ matrix.nginx != 'ubuntu' && matrix.nginx != 'alpine' }}
+      - if: ${{ matrix.nginx.version != 'ubuntu' && matrix.nginx.version != 'alpine' }}
         name: Build with sources
         run: |
           if [ "${nginx_optional}" = "redis" ]; then
@@ -147,7 +148,7 @@ jobs:
           sudo cp objs/ngx_stream_module.so /usr/lib/nginx/modules/
           sudo cp objs/nginx /usr/local/sbin/
         env:
-          nginx_version: ${{ matrix.nginx }}
+          nginx_version: ${{ matrix.nginx.version }}
           nginx_optional: ${{ matrix.optional }}
       - name: Test
         run: |
@@ -183,13 +184,17 @@ jobs:
     strategy:
       matrix:
         nginx:
-          - alpine
-          - ubuntu
-          - '1.30.4' # stable
-          - '1.31.4' # mainline
+          - version: 'alpine'
+            label: 'alpine'
+          - version: 'ubuntu'
+            label: 'ubuntu'
+          - version: '1.30.4'
+            label: 'stable'
+          - version: '1.31.4'
+            label: 'mainline'
         optional:
           - ''
           - 'redis'
     container:
-      image: ${{ matrix.nginx == 'alpine' && 'alpine:latest' || null }}
-      options: ${{ matrix.nginx == 'alpine' && '--init' || null }}
+      image: ${{ matrix.nginx.version == 'alpine' && 'alpine:latest' || null }}
+      options: ${{ matrix.nginx.version == 'alpine' && '--init' || null }}
