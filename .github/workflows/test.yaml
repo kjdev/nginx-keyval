@@ -36,6 +36,7 @@ jobs:
             cpanminus \
             curl \
             libjansson-dev \
+            libnginx-mod-stream \
             nginx \
             nginx-dev
           if [ "${nginx_optional}" = "redis" ]; then
@@ -68,6 +69,7 @@ jobs:
             make \
             musl-dev \
             nginx \
+            nginx-mod-stream \
             openssl-dev \
             pcre2-dev \
             perl-dev \
@@ -119,7 +121,6 @@ jobs:
             --add-dynamic-module=..
           # The distribution source has only headers, so build just this module
           make -f objs/Makefile objs/ngx_http_keyval_module.so
-          make -f objs/Makefile objs/ngx_stream_module.so
           make -f objs/Makefile objs/ngx_stream_keyval_module.so
           # Copy module
           if [ "${dist}" = "ubuntu" ]; then
@@ -128,7 +129,6 @@ jobs:
           ${sudo} mkdir -p /usr/lib/nginx/modules
           ${sudo} cp objs/ngx_http_keyval_module.so /usr/lib/nginx/modules/
           ${sudo} cp objs/ngx_stream_keyval_module.so /usr/lib/nginx/modules/
-          ${sudo} cp objs/ngx_stream_module.so /usr/lib/nginx/modules/
           ${sudo} mkdir -p /usr/local/sbin
           ${sudo} ln -sfn /usr/sbin/nginx /usr/local/sbin/nginx
         env:
