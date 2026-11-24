@@ -23,7 +23,7 @@ jobs:
       contents: read
       packages: read
     name: test (${{ matrix.optional != '' && format('{0}, {1}', matrix.nginx.label, matrix.optional) || matrix.nginx.label }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - if: ${{ matrix.nginx.version != 'alpine' }}
         name: Set up step
